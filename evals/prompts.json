@@ -1,0 +1,505 @@
+[
+  {
+    "name": "suggest: two rappers recast as a blacksmith and a worker",
+    "feature": "suggest",
+    "mode": "motion",
+    "engine": "wan3-r2v",
+    "source": "3e1aa7ff2b99978ec305f98b",
+    "refs": [
+      "9d34dfb8d9ce7d001dc3aea4",
+      "7c085d40a85aaca62bcb6240"
+    ],
+    "avoid": [
+      "stripe",
+      "chain",
+      "sunglass",
+      "dreadlock",
+      "jewel",
+      "white tee",
+      "three-quarter",
+      "views",
+      "turnaround",
+      "character sheet"
+    ],
+    "want": [
+      [
+        "apron"
+      ],
+      [
+        "red"
+      ],
+      [
+        "ponytail",
+        "pony tail",
+        "tied back",
+        "long dark",
+        "dark hair"
+      ],
+      [
+        "jacket",
+        "stain",
+        "beige",
+        "cream",
+        "tan ",
+        "blouse"
+      ]
+    ]
+  },
+  {
+    "name": "improve: a short recast request on the same clip",
+    "feature": "improve",
+    "mode": "motion",
+    "engine": "wan3-r2v",
+    "source": "3e1aa7ff2b99978ec305f98b",
+    "refs": [
+      "9d34dfb8d9ce7d001dc3aea4",
+      "7c085d40a85aaca62bcb6240"
+    ],
+    "draft": "Recast the two performers as @1 and @2. Keep the studio and the camera.",
+    "avoid": [
+      "stripe",
+      "chain",
+      "sunglass",
+      "dreadlock",
+      "jewel",
+      "white tee",
+      "three-quarter",
+      "views",
+      "turnaround",
+      "character sheet"
+    ],
+    "want": [
+      [
+        "apron"
+      ],
+      [
+        "red"
+      ],
+      [
+        "ponytail",
+        "pony tail",
+        "tied back",
+        "long dark",
+        "dark hair"
+      ],
+      [
+        "jacket",
+        "stain",
+        "beige",
+        "cream",
+        "tan ",
+        "blouse"
+      ]
+    ]
+  },
+  {
+    "name": "long suggest: a first shot for two cast sheets",
+    "feature": "suggest",
+    "mode": "long",
+    "engine": "minimax-h3-long",
+    "source": "",
+    "refs": [
+      "04df6e100bd5ff8d533d86fe",
+      "c85816dcd1f1d91b0023e07f"
+    ],
+    "avoid": [
+      "chain",
+      "character sheet",
+      "fair-skinned man",
+      "light complexion",
+      "light skin",
+      "pale",
+      "sunglass",
+      "three-quarter",
+      "turnaround",
+      "views"
+    ],
+    "want": [
+      [
+        "@1"
+      ],
+      [
+        "@2"
+      ],
+      [
+        "blonde"
+      ],
+      [
+        "blazer",
+        "suit",
+        "jacket"
+      ],
+      [
+        "curly",
+        "afro",
+        "coily"
+      ],
+      [
+        "light blue",
+        "light-blue",
+        "pale blue",
+        "sky blue"
+      ],
+      [
+        "two people",
+        "only two",
+        "two of them",
+        "the two",
+        "both"
+      ],
+      [
+        "dark brown skin",
+        "dark skin",
+        "deep brown",
+        "brown skin",
+        "black man",
+        "dark complexion",
+        "dark-skinned"
+      ]
+    ]
+  },
+  {
+    "name": "long improve: a continuing shot from a rough line",
+    "feature": "improve",
+    "mode": "long",
+    "engine": "minimax-h3-long",
+    "source": "",
+    "refs": [
+      "04df6e100bd5ff8d533d86fe",
+      "c85816dcd1f1d91b0023e07f"
+    ],
+    "draft": "@2 takes the next verse while @1 hypes him up, camera pulls out wide",
+    "before": "@1 steps up to the microphone in a bright orange studio and starts rapping while @2 nods along beside her. Medium shot, slow push in.",
+    "join": "continue",
+    "avoid": [
+      "chain",
+      "character sheet",
+      "fair-skinned man",
+      "light complexion",
+      "light skin",
+      "pale",
+      "sunglass",
+      "three-quarter",
+      "turnaround",
+      "views"
+    ],
+    "want": [
+      [
+        "@1"
+      ],
+      [
+        "@2"
+      ],
+      [
+        "blonde"
+      ],
+      [
+        "blazer",
+        "suit",
+        "jacket"
+      ],
+      [
+        "curly",
+        "afro",
+        "coily"
+      ],
+      [
+        "light blue",
+        "light-blue",
+        "pale blue",
+        "sky blue"
+      ],
+      [
+        "two people",
+        "only two",
+        "two of them",
+        "the two",
+        "both"
+      ],
+      [
+        "dark brown skin",
+        "dark skin",
+        "deep brown",
+        "brown skin",
+        "black man",
+        "dark complexion",
+        "dark-skinned"
+      ]
+    ]
+  },
+  {
+    "name": "swap improve: a night car clip, the car becomes an orange race car",
+    "feature": "improve",
+    "mode": "swap",
+    "engine": "seedance25-edit",
+    "source": "c752fdebcc864269d01b4324",
+    "refs": [
+      "37688802254f7e82110b00dc"
+    ],
+    "draft": "Replace the car with @1.",
+    "avoid": [],
+    "want": [
+      [
+        "@1"
+      ],
+      [
+        "orange"
+      ],
+      [
+        "race car",
+        "racecar",
+        "racing car",
+        "sports car",
+        "porsche"
+      ],
+      [
+        "night"
+      ],
+      [
+        "plaza",
+        "storefront",
+        "city",
+        "street",
+        "square",
+        "lot"
+      ]
+    ]
+  },
+  {
+    "name": "style suggest: a street dancer in a knitted yarn world",
+    "feature": "suggest",
+    "mode": "style",
+    "engine": "seedance25-style",
+    "source": "f1639b56be831d6633b8906d",
+    "refs": [],
+    "style": "knitted-yarn",
+    "avoid": [
+      "three-quarter",
+      "views",
+      "turnaround",
+      "character sheet"
+    ],
+    "want": [
+      [
+        "knit",
+        "yarn",
+        "wool",
+        "crochet",
+        "stitch"
+      ],
+      [
+        "street",
+        "city",
+        "sidewalk",
+        "pavement",
+        "road"
+      ],
+      [
+        "danc",
+        "step",
+        "moves",
+        "spin",
+        "stride",
+        "walk"
+      ]
+    ]
+  },
+  {
+    "name": "describe: Kristion's character sheet",
+    "feature": "describe",
+    "mode": "motion",
+    "engine": "wan3-r2v",
+    "source": "",
+    "refs": [
+      "c85816dcd1f1d91b0023e07f"
+    ],
+    "avoid": [
+      "three-quarter",
+      "views",
+      "turnaround",
+      "character sheet",
+      "light complexion",
+      "light skin",
+      "pale"
+    ],
+    "want": [
+      [
+        "@1"
+      ],
+      [
+        "curly",
+        "afro",
+        "coily"
+      ],
+      [
+        "light blue",
+        "light-blue",
+        "pale blue",
+        "sky blue"
+      ],
+      [
+        "dark brown skin",
+        "dark skin",
+        "brown skin",
+        "deep brown",
+        "dark complexion",
+        "dark-skinned",
+        "black man",
+        "black young man",
+        "brown complexion",
+        "warm brown",
+        "black man"
+      ]
+    ]
+  },
+  {
+    "name": "suggest: fighters in a ring from a depth clip, recast as Mikky and Kristion",
+    "feature": "suggest",
+    "mode": "motion",
+    "engine": "wan3-r2v",
+    "source": "058e581241f511062d9a8350",
+    "refs": [
+      "04df6e100bd5ff8d533d86fe",
+      "c85816dcd1f1d91b0023e07f"
+    ],
+    "avoid": [
+      "grayscale",
+      "greyscale",
+      "monochrome",
+      "silhouette",
+      "black and white",
+      "black-and-white",
+      "black background",
+      "gray figure",
+      "grey figure",
+      "white figure",
+      "featureless",
+      "three-quarter",
+      "views",
+      "turnaround",
+      "character sheet"
+    ],
+    "want": [
+      [
+        "depth"
+      ],
+      [
+        "blonde"
+      ],
+      [
+        "blue",
+        "curly"
+      ]
+    ]
+  },
+  {
+    "name": "improve: a rough fight prompt over a depth clip",
+    "feature": "improve",
+    "mode": "motion",
+    "engine": "wan3-r2v",
+    "source": "058e581241f511062d9a8350",
+    "refs": [
+      "04df6e100bd5ff8d533d86fe",
+      "c85816dcd1f1d91b0023e07f"
+    ],
+    "draft": "@1 and @2 fight in a boxing ring under the arena lights",
+    "avoid": [
+      "grayscale",
+      "greyscale",
+      "monochrome",
+      "silhouette",
+      "black and white",
+      "black-and-white",
+      "black background",
+      "gray figure",
+      "grey figure",
+      "white figure",
+      "featureless",
+      "three-quarter",
+      "views",
+      "character sheet"
+    ],
+    "want": [
+      [
+        "depth"
+      ],
+      [
+        "ring"
+      ],
+      [
+        "blonde"
+      ]
+    ]
+  },
+  {
+    "name": "suggest: the rappers' depth clip recast as a blacksmith and a worker",
+    "feature": "suggest",
+    "mode": "motion",
+    "engine": "wan3-r2v",
+    "source": "b6c5f5e00694405fa993225d",
+    "refs": [
+      "9d34dfb8d9ce7d001dc3aea4",
+      "7c085d40a85aaca62bcb6240"
+    ],
+    "avoid": [
+      "grayscale",
+      "greyscale",
+      "monochrome",
+      "silhouette",
+      "black and white",
+      "black-and-white",
+      "black background",
+      "gray figure",
+      "grey figure",
+      "white figure",
+      "featureless",
+      "three-quarter",
+      "views",
+      "turnaround",
+      "character sheet"
+    ],
+    "want": [
+      [
+        "depth"
+      ],
+      [
+        "apron"
+      ],
+      [
+        "red"
+      ]
+    ]
+  },
+  {
+    "name": "suggest: a dancer's pose clip recast as a sea captain",
+    "feature": "suggest",
+    "mode": "motion",
+    "engine": "wan3-r2v",
+    "source": "c70422201527ff4bf1e1a512",
+    "refs": [
+      "fdeaca2c921721507b8e2fa7"
+    ],
+    "avoid": [
+      "stick figure",
+      "black background",
+      "colored lines",
+      "colourful lines",
+      "glowing",
+      "three-quarter",
+      "views",
+      "character sheet",
+      "neon lines",
+      "neon sticks"
+    ],
+    "want": [
+      [
+        "pose"
+      ],
+      [
+        "beard",
+        "peacoat",
+        "captain"
+      ]
+    ]
+  }
+]

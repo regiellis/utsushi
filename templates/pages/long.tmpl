@@ -1,0 +1,163 @@
+{{define "long"}}
+<div class="studio long" hc-data="longvideo()" hc-on:change="update()" hc-on:input="update()" hc-on:htmx:after:swap="update()"
+     hc-on:click="clicks($event)" hc-on:keydown="keys($event)"
+     data-billed="{{with .engine}}{{.Billed}}{{end}}" data-via="{{with .engine}}{{.Via}}{{end}}" data-offline="{{.offline}}"
+     data-cast="{{.setup.Cast}}" data-from="{{.setup.From}}"
+     data-orig="{{if .setup.From}}{{.setup.Start}}|{{.setup.Cast}}|{{.setup.Shape}}|{{.setup.Size}}|{{.setup.Quality}}|{{.setup.CastView}}|{{.setup.RefSize}}{{end}}">
+  <aside class="panel" aria-label="Long video setup">
+    <div class="panel-scroll">
+      <p class="lede">A video of shots, as long as you need. Each shot continues from the one before it or cuts to a new one, and the cast stays the same throughout.</p>
+      {{if .setup.From}}<p class="notice is-note long-from">Set up from an earlier take. It renders with the same seed, so only what you change differs. Shots you leave as they were are kept, not made again; the rest, and every shot after a change, are made fresh.</p>{{end}}
+      {{with .offline}}<p class="notice">{{.}}</p>{{end}}
+
+      <section class="group" aria-labelledby="start-label">
+        <div class="label-row"><span id="start-label">Start from</span><span data-start-note>a prompt</span></div>
+        <div class="clip-grid start-grid" id="start-grid" role="radiogroup" aria-labelledby="start-label">
+          <label class="clip-tile start-fresh">
+            <input type="radio" name="start" value="" form="long-form" {{if not .setup.Start}}checked{{end}} data-seconds="0">
+            <span class="start-fresh-text"><b>A prompt</b><span>the first shot starts fresh</span></span>
+          </label>
+          {{range .starts}}{{template "start-choice" (dict "clip" . "start" $.setup.Start)}}{{end}}
+        </div>
+      </section>
+
+      <section class="group" aria-labelledby="cast-label">
+        <div class="label-row"><span id="cast-label">Cast</span><span data-cast-count></span></div>
+        <p class="meta long-note">Character sheets hold a person best: head to toe, from every side. Picked in order as @1, @2; name them in each shot.</p>
+        <div class="segmented segmented-inline" role="radiogroup" aria-label="How sheets are sent">
+          <label title="Each character sheet goes to the model as its first figure, so it draws one person per sheet"><input type="radio" name="cast_view" value="front" form="long-form" {{if eq .setup.CastView "front"}}checked{{end}}><span>Sheets as front view</span></label>
+          <label title="Sheets go whole; the model may draw each figure as another person"><input type="radio" name="cast_view" value="sheet" form="long-form" {{if eq .setup.CastView "sheet"}}checked{{end}}><span>Whole sheets</span></label>
+        </div>
+        <div class="segmented segmented-inline" role="radiogroup" aria-label="Reference detail">
+          <label title="The cast is scaled down to the video's size: faster"><input type="radio" name="ref_size" value="match" form="long-form" {{if eq .setup.RefSize "match"}}checked{{end}}><span>Standard detail</span></label>
+          <label title="The cast keeps up to 2048 px: likeness holds best, slower"><input type="radio" name="ref_size" value="max" form="long-form" {{if eq .setup.RefSize "max"}}checked{{end}}><span>Full detail</span></label>
+        </div>
+        <div class="cast long-cast" id="images" aria-label="Cast images">
+          <label class="cast-action" for="cast-file">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Upload<span class="cast-action-note">JPEG, PNG, WebP</span>
+          </label>
+          {{range .images}}{{template "image-tile" .}}{{end}}
+        </div>
+        <form class="sr-only" hx-post="/media?kind=image" hx-trigger="change" hx-target="#images" hx-swap="beforeend"
+              enctype="multipart/form-data" hc-on:htmx:after:request="$event.currentTarget.reset()">
+          <input type="file" name="file" accept="image/png,image/jpeg,image/webp" id="cast-file">
+        </form>
+      </section>
+
+      <section class="group" aria-labelledby="shots-label">
+        <div class="label-row"><span id="shots-label">Shots</span><span data-shots-note></span></div>
+        <div class="shots" data-shots>{{range $i, $s := .setup.Shots}}{{template "long-shot" (dict "shot" $s "index" $i "seconds" $.seconds "from" $.setup.From "page" $.page "images" $.images)}}{{end}}</div>
+        <template data-shot-template>{{template "long-shot" (dict "shot" .blankShot "seconds" .seconds "from" "" "page" .page "images" .images)}}</template>
+        <button type="button" class="btn btn-secondary btn-small shot-add" data-shot-add>+ Add shot</button>
+      </section>
+
+      <section class="group" aria-labelledby="sound-label">
+        <div class="label-row"><span id="sound-label">Soundtrack</span><span>over the whole video</span></div>
+        <div class="soundtracks" role="radiogroup" aria-labelledby="sound-label">
+          <label class="soundtrack"><input type="radio" name="soundtrack" value="" form="long-form" {{if not .setup.Soundtrack}}checked{{end}}><span>None · each shot keeps its own sound</span></label>
+          {{range .audios}}{{if .Ready}}
+          <label class="soundtrack"><input type="radio" name="soundtrack" value="{{.ID}}" form="long-form" {{if eq .ID $.setup.Soundtrack}}checked{{end}}>
+            <span>{{.Label}}</span><span class="meta">{{.Length}}</span></label>
+          {{end}}{{end}}
+        </div>
+        {{if not .audios}}<p class="meta long-note">Add audio in the studio's reference library to use it here.</p>{{end}}
+        <div class="segmented segmented-inline" role="radiogroup" aria-label="How the soundtrack plays" data-soundtrack-mode>
+          <label title="The soundtrack is the video's sound"><input type="radio" name="soundtrack_mode" value="replace" form="long-form" {{if eq .setup.SoundtrackMode "replace"}}checked{{end}}><span>Replace the shots' sound</span></label>
+          <label title="The soundtrack plays under the shots' own sound"><input type="radio" name="soundtrack_mode" value="mix" form="long-form" {{if eq .setup.SoundtrackMode "mix"}}checked{{end}}><span>Mix under it</span></label>
+        </div>
+      </section>
+
+      <section class="group" data-shape>
+        <div class="label-row"><span>Shape</span><span>the start video's own when extending one</span></div>
+        <div class="segmented segmented-3" role="radiogroup" aria-label="Shape">
+          <label><input type="radio" name="shape" value="portrait" form="long-form" {{if eq $.setup.Shape "portrait"}}checked{{end}}><span>9:16</span></label>
+          <label><input type="radio" name="shape" value="landscape" form="long-form" {{if eq $.setup.Shape "landscape"}}checked{{end}}><span>16:9</span></label>
+          <label><input type="radio" name="shape" value="square" form="long-form" {{if eq $.setup.Shape "square"}}checked{{end}}><span>1:1</span></label>
+        </div>
+      </section>
+      <section class="group">
+        <div class="label-row"><span>Size and quality</span><span>draft first, then keep the shots you like</span></div>
+        <div class="segmented segmented-2" role="radiogroup" aria-label="Size">
+          <label><input type="radio" name="size" value="draft" form="long-form" {{if eq $.setup.Size "draft"}}checked{{end}}><span>480p<small>faster</small></span></label>
+          <label><input type="radio" name="size" value="hd" form="long-form" {{if eq $.setup.Size "hd"}}checked{{end}}><span>720p<small>sharper</small></span></label>
+        </div>
+        <div class="segmented segmented-2" role="radiogroup" aria-label="Quality">
+          <label><input type="radio" name="quality" value="turbo" form="long-form" {{if eq $.setup.Quality "turbo"}}checked{{end}}><span>Turbo<small>4 steps</small></span></label>
+          <label><input type="radio" name="quality" value="full" form="long-form" {{if eq $.setup.Quality "full"}}checked{{end}}><span>Full<small>20 steps</small></span></label>
+        </div>
+      </section>
+    </div>
+
+    <form id="long-form" class="panel-foot" hx-post="/long" hx-target="#form-errors" hx-swap="innerHTML">
+      <div data-refs-inputs></div>
+      <input type="hidden" name="from" value="{{.setup.From}}">
+      <div id="form-errors" aria-live="assertive"></div>
+      <button class="generate" data-generate>
+        <span class="generate-label">Generate</span>
+        <span class="generate-meta" data-generate-meta></span>
+      </button>
+    </form>
+  </aside>
+
+  {{template "run-feed" (dict "runs" .runs "title" "Recent" "library" false)}}
+</div>
+{{end}}
+
+{{define "long-shot"}}
+<div class="shot" data-shot{{if .from}} data-orig-index="{{.index}}" data-orig-prompt="{{.shot.Prompt}}" data-orig-seconds="{{.shot.Seconds}}" data-orig-join="{{.shot.Join}}" data-orig-end="{{.shot.End}}"{{if .shot.Done}} data-done{{end}}{{end}}>
+  <div class="shot-head">
+    <span class="shot-num" data-shot-num>Shot 1</span>
+    <span class="shot-kept" data-kept-note hidden>kept from the earlier take</span>
+    <span class="grow"></span>
+    <button type="button" class="btn btn-ghost btn-small" data-shot-remake hidden title="Make this shot and every one after it again">Remake</button>
+    <button type="button" class="btn-icon" data-shot-up title="Move up" aria-label="Move this shot up"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+    <button type="button" class="btn-icon" data-shot-down title="Move down" aria-label="Move this shot down"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button>
+    <button type="button" class="btn-icon btn-icon-danger" data-shot-remove title="Remove" aria-label="Remove this shot">{{template "icon-trash"}}</button>
+  </div>
+  <div class="shot-options">
+    <div class="segmented segmented-inline" role="radiogroup" aria-label="Join" data-join>
+      <label><input type="radio" value="continue" {{if eq .shot.Join "continue"}}checked{{end}}><span>Continues</span></label>
+      <label><input type="radio" value="cut" {{if eq .shot.Join "cut"}}checked{{end}}><span>New shot</span></label>
+    </div>
+    <div class="segmented segmented-inline" role="radiogroup" aria-label="Length" data-length>
+      {{range .seconds}}<label><input type="radio" value="{{.}}" {{if eq . $.shot.Seconds}}checked{{end}}><span>{{.}} s</span></label>{{end}}
+    </div>
+  </div>
+  <div class="prompt shot-prompt">
+    <div class="prompt-field" data-tag-field>
+      <div class="prompt-mirror" data-prompt-mirror aria-hidden="true"></div>
+      <textarea name="shot_prompt" form="long-form" rows="3" aria-autocomplete="list" aria-label="What happens in this shot"
+                placeholder="What happens, who is in it (@1, @2), where, and how the camera moves. CUT 1: and CUT 2: split a shot inside.">{{.shot.Prompt}}</textarea>
+      <div class="tag-menu" data-tag-menu role="listbox" aria-label="Cast to tag" hidden></div>
+    </div>
+    {{with .page}}{{if or .Improve .Suggest}}
+    <div class="prompt-ai">
+      {{if .Improve}}<button type="button" class="chip chip-ai" data-shot-llm="improve" title="Rewrite this shot for the model, with the cast and the shot before">✦ Improve</button>{{end}}
+      {{if .Suggest}}<button type="button" class="chip chip-ai" data-shot-llm="suggest" title="Draft this shot from the cast and the shot before">Suggest</button>{{end}}
+      <button type="button" class="chip" data-shot-undo hidden>Undo</button>
+      <span class="grow"></span><span class="meta" data-shot-status></span>
+    </div>
+    {{end}}{{end}}
+  </div>
+  <input type="hidden" name="shot_join" form="long-form" value="{{.shot.Join}}">
+  <input type="hidden" name="shot_seconds" form="long-form" value="{{.shot.Seconds}}">
+  <input type="hidden" name="shot_keep" form="long-form" value="" data-shot-keep>
+  <div class="shot-end">
+    <button type="button" class="btn btn-ghost btn-small" data-shot-end-toggle title="Pin the shot's last frame to an image">Ends on: <span data-shot-end-label>anything</span></button>
+    <div class="shot-end-pick" data-shot-end-pick hidden>
+      <label class="shot-end-none"><input type="radio" value="" {{if not .shot.End}}checked{{end}}><span>Anything</span></label>
+      {{range .images}}{{if .Ready}}<label class="shot-end-choice" title="{{.Label}}"><input type="radio" value="{{.ID}}" {{if eq .ID $.shot.End}}checked{{end}}><img src="{{.URL}}" alt="" loading="lazy"></label>{{end}}{{end}}
+    </div>
+  </div>
+  <input type="hidden" name="shot_end" form="long-form" value="{{.shot.End}}">
+</div>
+{{end}}
+
+{{define "start-choice"}}
+<label class="clip-tile" title="Extend {{.clip.Label}}">
+  <input type="radio" name="start" value="{{.clip.ID}}" form="long-form" data-seconds="{{.clip.Seconds}}" {{if eq .clip.ID .start}}checked{{end}}>
+  {{template "clip-tile-media" .clip}}
+  <button type="button" class="tile-edit" aria-label="Cuts of {{.clip.Label}}" title="See its cuts, or split it into clips"
+          hx-get="/media/{{.clip.ID}}/editor" hx-target="#clip-editor" hx-swap="innerHTML">{{template "icon-cut"}}</button>
+</label>
+{{end}}

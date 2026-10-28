@@ -1,0 +1,86 @@
+{{define "layout-base"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{fallback .title "Utsushi"}}</title>
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0c0c0d">
+  <link rel="icon" href="{{asset "/static/icons/favicon.svg"}}" type="image/svg+xml">
+  <link rel="icon" href="{{asset "/static/icons/favicon-32.png"}}" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="{{asset "/static/icons/apple-touch-icon.png"}}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700&text=%E5%86%99&display=swap">
+  <link rel="stylesheet" href="{{asset "/static/css/app.css"}}">
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0/dist/htmx.min.js"></script>
+  <script src="/hyperchi/js/hx-sse.js"></script>
+  <script src="{{asset "/static/js/hyperchi-directives.js"}}"></script>
+  <script src="{{asset "/static/js/app.js"}}"></script>
+</head>
+<body hc-data="shell()" hc-on:toast="toast($event.detail.message)" hc-on:clip-edited="clipEdited($event.detail.message)"
+      hc-on:pointerover="peekIn($event)" hc-on:pointerout="peekOut($event)"
+      hc-on:focusin="peekIn($event)" hc-on:focusout="peekOut($event)" hc-on:click="clicked($event)"
+      hc-on:htmx:confirm="ask($event)" hc-on:htmx:after:swap="swapped($event)"
+      hc-on:input="settingsEdited($event)" hc-on:change="settingsEdited($event)"
+      data-notify="{{.page.Notify}}"{{with .csrfToken}} hx-headers:inherited='{"X-CSRF-Token": "{{.}}"}'{{end}}>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Utsushi home">
+      <span class="brand-mark" aria-hidden="true">写</span>
+      <span class="wordmark">utsushi<span class="wordmark-dot">.</span></span>
+    </a>
+    <nav class="modes" aria-label="Mode">
+      <a href="/" {{if eq .nav "motion"}}aria-current="page"{{end}}>Motion transfer</a>
+      <a href="/swap" {{if eq .nav "swap"}}aria-current="page"{{end}}>Object swap</a>
+      <a href="/style" {{if eq .nav "style"}}aria-current="page"{{end}}>Style</a>
+      <a href="/long" {{if eq .nav "long"}}aria-current="page"{{end}}>Long video</a>
+    </nav>
+    <a class="nav-link" href="/runs" {{if eq .nav "runs"}}aria-current="page"{{end}}>Library</a>
+    <a class="nav-link" href="/tools" {{if eq .nav "tools"}}aria-current="page"{{end}}>Tools</a>
+    <span class="grow"></span>
+    <div class="runtime" aria-label="Where work runs">{{template "runtime-pills" .runtime}}</div>
+    <button type="button" class="btn-icon gear" aria-label="Settings" title="Settings"
+            hx-get="/settings?sec=server" hx-target="#settings-dialog" hx-swap="innerHTML">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </header>
+
+  <main class="shell">
+    {{.content}}
+  </main>
+
+  <div class="toast" role="status" aria-live="polite" hc-show="message" hc-cloak>
+    <span hc-text="message"></span>
+    <button type="button" class="toast-close" hc-on:click="message = ''" aria-label="Dismiss">×</button>
+  </div>
+  <div class="peek" hc-ref="peek" aria-hidden="true"></div>
+  <div class="error-tip" hc-ref="errorTip" aria-hidden="true"><b hc-ref="errorTitle"></b><span hc-ref="errorHint"></span></div>
+  <dialog class="lightbox" hc-ref="lightbox" aria-label="Preview" hc-on:click.self="closeLightbox()" hc-on:close="lightboxClosed()">
+    <div class="lightbox-stage" hc-ref="lightboxStage"></div>
+    <div class="lightbox-bar">
+      <a class="btn btn-secondary btn-small" hc-ref="lightboxCompare" href="#" hidden>Compare</a>
+      <a class="btn btn-secondary btn-small" hc-ref="lightboxDownload" href="#" download>Download</a>
+      <button type="button" class="btn btn-ghost btn-small" hc-on:click="closeLightbox()">Close</button>
+    </div>
+  </dialog>
+  <dialog class="image-dialog" id="image-dialog" hc-ref="images" aria-label="Create an image"></dialog>
+  <dialog class="clip-editor-dialog" id="clip-editor" hc-ref="clipEditor" aria-label="Clip cuts"></dialog>
+  <dialog class="settings-dialog" id="settings-dialog" hc-ref="settings" aria-label="Settings" hc-on:cancel="settingsCancel($event)"></dialog>
+  <dialog class="confirm" hc-ref="confirm" aria-labelledby="confirm-text"
+          hc-on:click.self="answer(false)" hc-on:close="confirmClosed()">
+    <p class="confirm-text" id="confirm-text" hc-ref="confirmText"></p>
+    <div class="confirm-bar">
+      <button type="button" class="btn btn-ghost" hc-ref="confirmNo" hc-on:click="answer(false)">Cancel</button>
+      <button type="button" class="btn btn-confirm" hc-ref="confirmOk" hc-on:click="answer(true)">Continue</button>
+    </div>
+  </dialog>
+  <script>HyperChi.start()</script>
+</body>
+</html>
+{{end}}
+
+{{define "runtime-pills"}}
+<span class="pill-state{{if .LocalOK}} is-ok{{else}} is-bad{{end}}" id="pill-local" title="Free engines run on this machine's GPU through the local proxy"><i></i>{{.Local}}</span>
+<span class="pill-state{{if .CloudOK}} is-ok{{else}} is-bad{{end}}" id="pill-cloud" title="Billed engines need COMFY_API_KEY"><i></i>{{.Cloud}}</span>
+{{end}}

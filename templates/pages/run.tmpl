@@ -1,0 +1,163 @@
+{{define "run"}}
+{{$siblings := .siblings}}
+{{with .run}}
+<div class="viewer detail">
+  <div class="viewer-main">
+    <div class="viewer-top">
+      <a class="back" href="{{.Back}}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Studio</a>
+      <span class="grow"></span>
+      {{with $siblings}}
+      <nav class="versions" aria-label="Versions">
+        {{range .}}
+        <a href="/runs/{{.ID}}" {{if .Current}}aria-current="page"{{end}}>
+          <video src="{{.ThumbURL}}#t=0.1" muted playsinline preload="metadata"></video>{{.Label}}
+        </a>
+        {{end}}
+      </nav>
+      {{end}}
+      <span class="grow"></span>
+      <span class="viewer-top-spacer"></span>
+    </div>
+
+    {{if .Succeeded}}
+    <div class="viewer-stage" hc-data="viewer()">
+      <div class="split" data-mode="split" hc-ref="stage" style="aspect-ratio: {{.Aspect}}"
+           hc-on:pointerdown="start($event)" hc-on:pointermove="move($event)"
+           hc-on:pointerup="stop($event)" hc-on:pointercancel="stop($event)">
+        <video class="split-result" hc-ref="after" src="{{.ResultURL}}" muted playsinline preload="auto" loop
+               hc-on:timeupdate="sync()" hc-on:loadedmetadata="sync()" hc-on:ended="sync()"></video>
+        <video class="split-source" hc-ref="before" src="{{.SourceURL}}" muted playsinline preload="auto"
+               hc-bind:style="{ clipPath: mode === 'split' ? 'inset(0 ' + (100 - pos) + '% 0 0)' : 'none' }"></video>
+        <span class="split-line" hc-bind:style="{ left: pos + '%' }" aria-hidden="true"></span>
+        <span class="split-knob" hc-bind:style="{ left: pos + '%' }" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 7l-5 5 5 5M15 7l5 5-5 5"/></svg></span>
+        <span class="split-tag split-tag-source">Source</span>
+        <span class="split-tag split-tag-result">Result</span>
+      </div>
+      <div class="transport">
+        <button type="button" class="transport-play" hc-on:click="toggle()" hc-bind:aria-label="playing ? 'Pause' : 'Play'">
+          <svg viewBox="0 0 24 24" hc-show="!playing" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg>
+          <svg viewBox="0 0 24 24" hc-show="playing" hc-cloak aria-hidden="true"><rect x="5" y="4" width="5" height="16" rx="1"/><rect x="14" y="4" width="5" height="16" rx="1"/></svg>
+        </button>
+        <span class="transport-time" hc-text="clock">0:00.0 / 0:00.0</span>
+        <input class="scrubber" type="range" min="0" max="1000" step="1" aria-label="Position"
+               hc-model="seek" hc-on:input="scrub()" hc-bind:style="{ '--fill': (seek / 10) + '%' }">
+        <div class="segmented segmented-inline" role="radiogroup" aria-label="View">
+          <label><input type="radio" name="view" value="split" hc-model="mode" hc-on:change="setMode()"><span>Split</span></label>
+          <label><input type="radio" name="view" value="side" hc-model="mode" hc-on:change="setMode()"><span>Side by side</span></label>
+          <label><input type="radio" name="view" value="result" hc-model="mode" hc-on:change="setMode()"><span>Result</span></label>
+        </div>
+      </div>
+    </div>
+    {{else}}
+    <div class="viewer-stage viewer-live">
+      <div class="detail-live" hx-get="/runs/{{.ID}}" hx-trigger="done" hx-select=".detail" hx-target="closest .detail" hx-swap="outerHTML">{{template "run-card" .}}</div>
+    </div>
+    {{end}}
+  </div>
+
+  <aside class="viewer-side">
+    <div class="side-scroll">
+      <div class="side-head">
+        <div class="side-title">
+          <h1>{{.ModeLabel}}</h1>
+          <span class="status-line tone-{{.Tone}}"><i></i>{{.StatusLabel}}<span class="meta">· {{.Created}}</span></span>
+        </div>
+        <a class="btn-icon btn-icon-boxed" href="{{.Back}}" aria-label="Close">{{template "icon-close"}}</a>
+      </div>
+
+      <section class="group">
+        <div class="label-row"><span>Inputs</span></div>
+        <div class="side-inputs">
+          <figure>
+            <button type="button" class="side-input side-input-clip" style="aspect-ratio: {{.Aspect}}" aria-label="Source clip"
+                    data-peek="video" data-peek-src="{{.SourceURL}}" data-lightbox="video" data-lightbox-src="{{.SourceURL}}">
+              <video src="{{.SourceURL}}#t=0.1" muted playsinline preload="metadata"></video>
+            </button>
+            <figcaption>clip</figcaption>
+          </figure>
+          {{with .StyleURL}}
+          <figure>
+            <button type="button" class="side-input" aria-label="Style frame"
+                    data-peek="image" data-peek-src="{{.}}" data-lightbox="image" data-lightbox-src="{{.}}">
+              <img src="{{.}}" alt="">
+            </button>
+            <figcaption class="is-tag">style</figcaption>
+          </figure>
+          {{end}}
+          {{if .Refs}}<span class="side-inputs-sep" aria-hidden="true"></span>{{end}}
+          {{range .Refs}}{{if .URL}}
+          <figure>
+            {{if eq .Kind "audio"}}
+            <button type="button" class="side-input side-input-audio" aria-label="Reference {{.Tag}}, {{.Label}}" title="{{.Label}} · {{.Length}}" data-play-audio="{{.URL}}">
+              {{template "icon-audio"}}
+            </button>
+            {{else if eq .Kind "video"}}
+            <button type="button" class="side-input" aria-label="Reference {{.Tag}}"
+                    data-peek="video" data-peek-src="{{.URL}}" data-lightbox="video" data-lightbox-src="{{.URL}}">
+              <video src="{{.URL}}#t=0.1" muted playsinline preload="metadata"></video>
+            </button>
+            {{else}}
+            <button type="button" class="side-input" aria-label="Reference {{.Tag}}"
+                    data-peek="image" data-peek-src="{{.URL}}" data-lightbox="image" data-lightbox-src="{{.URL}}">
+              <img src="{{.URL}}" alt="">
+            </button>
+            {{end}}
+            <figcaption class="is-tag">{{.Tag}}</figcaption>
+          </figure>
+          {{end}}{{end}}
+        </div>
+      </section>
+
+      {{with .Prompt}}
+      <section class="group" hc-data="{ copied: false }">
+        <div class="label-row">
+          <span>Prompt</span>
+          <button type="button" class="copy" data-copy="{{.}}" hc-on:click="navigator.clipboard.writeText($event.currentTarget.dataset.copy).then(() => { copied = true; setTimeout(() => copied = false, 1500) })">
+            {{template "icon-copy"}}<span hc-text="copied ? 'Copied' : 'Copy'">Copy</span>
+          </button>
+        </div>
+        <p class="side-prompt">{{.}}</p>
+      </section>
+      {{end}}
+
+      <section class="group">
+        <div class="label-row"><span>Details</span></div>
+        <dl class="details">
+          {{with .StyleName}}<div><dt>Style</dt><dd>{{.}}</dd></div>{{end}}
+          <div><dt>Engine</dt><dd>{{.EngineName}}</dd></div>
+          {{with .Via}}<div><dt>Runs on</dt><dd>{{.}}</dd></div>{{end}}
+          {{with .Resolution}}<div><dt>Resolution</dt><dd>{{.}}{{with $.run.AspectLabel}} · {{.}}{{end}}</dd></div>{{end}}
+          <div><dt>Duration</dt><dd>{{fallback .ResultLength .Length}}</dd></div>
+          {{with .RunTime}}<div><dt>Run time</dt><dd>{{.}}</dd></div>{{end}}
+          {{with .Cost}}<div><dt>Cost</dt><dd>{{.}}</dd></div>{{end}}
+          {{if or .Failed .Lost}}<div><dt>Error</dt><dd class="details-error">{{.Error}}</dd></div>{{end}}
+        </dl>
+      </section>
+    </div>
+
+    <div class="side-foot">
+      {{if .Succeeded}}
+      <div class="row">
+        <button type="button" class="btn btn-primary btn-grow" hx-post="/runs/{{.ID}}/again" hx-swap="none"
+                {{if .Billed}}hx-confirm="Recreate with the same inputs? This is a new billed generation." data-confirm-ok="Recreate"{{end}}>{{template "icon-retry"}}Recreate</button>
+        <a class="btn btn-secondary btn-grow" href="{{.ResultURL}}" download>{{template "icon-download"}}Download</a>
+      </div>
+      <button type="button" class="btn btn-ghost btn-block" hx-post="/runs/{{.ID}}/source" hx-swap="none">Use result as new source clip</button>
+      {{else if .Active}}
+      <button type="button" class="btn btn-secondary btn-block" hx-post="/runs/{{.ID}}/cancel" hx-swap="none"
+              hx-confirm="Ask the provider to cancel? Work it has started may still be billed." data-confirm-ok="Cancel run" data-confirm-no="Keep running" data-confirm-tone="danger">Cancel</button>
+      {{else if .Lost}}
+      <button type="button" class="btn btn-primary btn-block" hx-post="/runs/{{.ID}}/collect" hx-swap="none">Collect</button>
+      {{else}}
+      <div class="row">
+        <button type="button" class="btn btn-primary btn-grow" hx-post="/runs/{{.ID}}/again" hx-swap="none"
+                {{if .Billed}}hx-confirm="Run it again with the same inputs? This is a new billed generation." data-confirm-ok="Run again"{{end}}>{{template "icon-retry"}}Run again</button>
+        <button type="button" class="btn btn-secondary btn-grow" hx-delete="/runs/{{.ID}}" hx-swap="none"
+                hx-confirm="Delete this run?" data-confirm-ok="Delete" data-confirm-tone="danger">Delete</button>
+      </div>
+      {{end}}
+    </div>
+  </aside>
+</div>
+{{end}}
+{{end}}

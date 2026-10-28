@@ -1,0 +1,284 @@
+{{define "settings"}}
+<div class="settings" data-settings>
+  <nav class="settings-nav" aria-label="Settings sections">
+    <div class="settings-heading">Settings</div>
+    {{range .nav}}
+    <button type="button" class="settings-tab" data-settings-nav="{{.ID}}" {{if .Current}}aria-current="page"{{end}}>
+      <span>{{.Label}}</span>
+      <span class="settings-tab-status{{if .OK}} is-ok{{end}}">{{.Status}}</span>
+    </button>
+    {{end}}
+    <span class="grow"></span>
+    <div class="settings-version">utsushi {{.version}}<br>Go SDK {{.sdk}}</div>
+  </nav>
+
+  <section class="settings-main">
+    <header class="settings-head">
+      <div>
+        <h2>{{.title}}</h2>
+        <p class="lede">{{.desc}}</p>
+      </div>
+      <button type="button" class="btn-icon btn-icon-boxed" data-settings-close aria-label="Close settings">{{template "icon-close"}}</button>
+    </header>
+    {{with .flash}}<p class="settings-flash" role="status">{{.}}</p>{{end}}
+
+    <form id="settings-form" class="settings-body" hx-post="/settings/{{.sec}}" hx-target="#settings-dialog" hx-swap="innerHTML">
+      {{if eq .sec "server"}}{{template "settings-server" .server}}{{end}}
+      {{if eq .sec "llm"}}{{template "settings-llm" .llm}}{{end}}
+      {{if eq .sec "engines"}}{{template "settings-engines" .engines}}{{end}}
+      {{if eq .sec "spending"}}{{template "settings-spending" .spend}}{{end}}
+      {{if eq .sec "storage"}}{{template "settings-storage" .storage}}{{end}}
+      {{if eq .sec "about"}}{{template "settings-about" .about}}{{end}}
+    </form>
+
+    <footer class="settings-foot">
+      <span class="settings-dirty-note"><i></i>Unsaved changes</span>
+      <span class="settings-clean-note">Settings are stored in {{.prefsPath}}, readable only by you. Keys are kept there too.</span>
+      <span class="grow"></span>
+      <button type="button" class="btn btn-ghost settings-discard" data-settings-nav="{{.sec}}">Discard</button>
+      <button type="submit" form="settings-form" class="btn btn-confirm settings-save">Save</button>
+    </footer>
+  </section>
+</div>
+{{end}}
+
+{{define "switch"}}<label class="switch"><input type="checkbox" name="{{.name}}" value="on" {{if .on}}checked{{end}}><span aria-hidden="true"></span><span class="sr-only">{{.label}}</span></label>{{end}}
+
+{{define "settings-server"}}
+<div class="set-group">
+  <div class="set-label">Run workflows on</div>
+  <div class="set-cards set-cards-2">
+    <label class="set-card"><input type="radio" name="mode" value="local" {{if ne .Mode "remote"}}checked{{end}}>
+      <span class="set-radio" aria-hidden="true"></span>
+      <span class="set-card-text"><span class="set-card-name">This machine</span><span class="set-card-sub">ComfyUI running here, on port 8188.</span></span></label>
+    <label class="set-card"><input type="radio" name="mode" value="remote" {{if eq .Mode "remote"}}checked{{end}}>
+      <span class="set-radio" aria-hidden="true"></span>
+      <span class="set-card-text"><span class="set-card-name">Remote server</span><span class="set-card-sub">A ComfyUI on your network, a rented GPU, or a domain.</span></span></label>
+  </div>
+</div>
+<div class="set-grid">
+  <label class="set-field set-field-local"><span class="set-label">Address</span><input class="field" name="local_url" value="{{.LocalURL}}" placeholder="http://127.0.0.1:8188"></label>
+  <label class="set-field set-field-remote"><span class="set-label">Address</span><input class="field" name="remote_url" value="{{.RemoteURL}}" placeholder="http://192.168.1.20:8188"></label>
+  <label class="set-field"><span class="set-label">Access token · optional</span>
+    <input class="field" type="password" name="token" autocomplete="off" placeholder="{{if .TokenSet}}Saved · leave empty to keep it{{else}}Only if the server checks one{{end}}"></label>
+</div>
+{{if .TokenSet}}<label class="set-check"><input type="checkbox" name="clear_token" value="on"> Remove the saved token</label>{{end}}
+{{with .ProxyNote}}<p class="set-note set-note-warn">{{.}}</p>{{end}}
+<div class="set-group">
+  <div class="set-row">
+    <span class="grow"></span>
+    <button type="button" class="btn btn-secondary btn-small" hx-post="/settings/server/test" hx-include="#settings-form" hx-target="#server-report" hx-swap="outerHTML">Test connection</button>
+  </div>
+  {{template "server-report" .Report}}
+</div>
+<div class="set-group">
+  <div class="set-label-row"><span class="set-label">Comfy API key · optional</span><span class="meta">billed engines only</span></div>
+  <div class="set-panel">
+    {{if .KeySet}}
+    <div class="set-row"><span class="mono">{{.KeyMasked}}</span>{{if .KeyFromEnv}}<span class="meta">from COMFY_API_KEY</span>{{end}}<span class="grow"></span>
+      <details class="set-inline"><summary class="btn btn-secondary btn-small">Replace</summary>{{template "key-input"}}</details>
+      {{if not .KeyFromEnv}}<button type="button" class="btn btn-ghost btn-small" hx-post="/settings/key/remove" hx-target="#settings-dialog" hx-swap="innerHTML"
+        hx-confirm="Remove the Comfy API key? Billed engines will be hidden." data-confirm-ok="Remove" data-confirm-tone="danger">Remove</button>{{end}}
+    </div>
+    {{else}}
+    <div class="set-row"><span class="set-note">No key. Billed engines (Genjutsu, Wan 3.0, Aleph 2, Wan 2.7 Edit) are hidden. Everything local still works.</span><span class="grow"></span>
+      <details class="set-inline"><summary class="btn btn-secondary btn-small">Add key</summary>{{template "key-input"}}</details></div>
+    {{end}}
+  </div>
+</div>
+{{end}}
+
+{{define "key-input"}}
+<div class="set-key">
+  <input class="field" type="password" name="key" form="key-form" autocomplete="off" placeholder="comfy_…">
+  <button type="button" class="btn btn-confirm btn-small" hx-post="/settings/key" hx-include="closest .set-key" hx-target="#settings-dialog" hx-swap="innerHTML">Save key</button>
+</div>
+{{end}}
+
+{{define "server-report"}}
+<div id="server-report" class="set-report">
+  {{if .OK}}
+  <div class="set-status is-ok"><i></i>Connected</div>
+  <div class="set-facts">
+    <div><span>ComfyUI</span><span>{{.Version}}</span></div>
+    <div><span>GPU</span><span>{{.GPU}}</span></div>
+    <div><span>Queue</span><span>{{.Queue}}</span></div>
+    <div><span>Latency</span><span>{{.Latency}}</span></div>
+  </div>
+  <div class="set-label-row"><span class="set-label">What this server can run</span><span class="meta">models &amp; nodes</span></div>
+  <div class="set-ready">
+    {{range .Ready}}
+    <div class="set-ready-row">
+      <span class="set-ready-text"><span>{{.Name}}</span><span class="meta">{{.Need}}</span></span>
+      <span class="set-status{{if .OK}} is-ok{{else}} is-warn{{end}}"><i></i>{{.State}}</span>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <div class="set-status is-bad"><i></i>{{.Err}}</div>
+  {{end}}
+</div>
+{{end}}
+
+{{define "settings-llm"}}
+<div class="set-row set-toggle-row">
+  <span class="set-text"><span class="set-name">Use a language model</span><span class="meta">Off means prompts are sent exactly as typed.</span></span>
+  {{template "switch" (dict "name" "on" "on" .On "label" "Use a language model")}}
+</div>
+<div class="set-llm{{if not .On}} is-off{{end}}">
+  <div class="set-group">
+    <div class="set-label">Provider</div>
+    <div class="set-cards set-cards-3">
+      {{range .Providers}}
+      <label class="set-card set-card-provider"><input type="radio" name="provider" value="{{.ID}}" {{if .Selected}}checked{{end}}
+             hx-get="/settings?sec=llm&amp;provider={{.ID}}" hx-trigger="change" hx-target="#settings-dialog" hx-swap="innerHTML" hx-include="#settings-form">
+        <span class="engine-code">{{.Code}}</span>
+        <span class="set-card-text"><span class="set-card-name">{{.Name}}</span><span class="set-card-sub">{{.Sub}} · <span class="{{if .Free}}is-free{{end}}">{{.Tag}}</span></span></span></label>
+      {{end}}
+    </div>
+  </div>
+  <div class="set-grid">
+    <label class="set-field"><span class="set-label">Base URL</span><input class="field" name="url" value="{{.URL}}" placeholder="{{.URLHint}}"></label>
+    <label class="set-field"><span class="set-label">{{.KeyLabel}}</span>
+      <input class="field" type="password" name="key" autocomplete="off" placeholder="{{if .KeySet}}Saved · leave empty to keep it{{else}}{{.KeyHint}}{{end}}"></label>
+    <div class="set-field"><span class="set-label">Model</span>
+      <div class="set-row"><input class="field" name="model" value="{{.Model}}" placeholder="Server default" list="llm-models" id="llm-model">
+        <button type="button" class="btn btn-secondary btn-small" hx-post="/settings/llm/models" hx-include="#settings-form" hx-target="#llm-models-slot" hx-swap="innerHTML">List models</button></div>
+      <div id="llm-models-slot"></div>
+    </div>
+    <div class="set-field"><span class="set-label">Connection</span>
+      <div class="set-row"><button type="button" class="btn btn-secondary btn-small" hx-post="/settings/llm/test" hx-include="#settings-form" hx-target="#llm-result" hx-swap="outerHTML">Test</button>
+        <span id="llm-result" class="meta">Not tested yet</span></div>
+    </div>
+  </div>
+  {{if .KeySet}}<label class="set-check"><input type="checkbox" name="clear_key" value="on"> Remove the saved key for this provider</label>{{end}}
+  <p class="set-note">{{.Privacy}}</p>
+  <div class="set-group">
+    <div class="set-label">Use it for</div>
+    <div class="set-panel set-list">
+      <div class="set-row set-toggle-row"><span class="set-text"><span class="set-name">Improve prompts</span><span class="meta">Rewrites a rough prompt for the chosen engine. Keeps your @tags. You see the result before it runs.</span></span>{{template "switch" (dict "name" "improve" "on" .Improve "label" "Improve prompts")}}</div>
+      <div class="set-row set-toggle-row"><span class="set-text"><span class="set-name">Describe cast references</span><span class="meta">Writes the character and background description Wan Animate needs. Requires a vision model.</span></span>{{template "switch" (dict "name" "describe" "on" .Describe "label" "Describe cast references")}}</div>
+      <div class="set-row set-toggle-row"><span class="set-text"><span class="set-name">Suggest a prompt from the clip</span><span class="meta">Looks at a few frames of the source and drafts a starting prompt. Requires a vision model.</span></span>{{template "switch" (dict "name" "suggest" "on" .Suggest "label" "Suggest a prompt from the clip")}}</div>
+    </div>
+  </div>
+</div>
+{{end}}
+
+{{define "llm-result"}}<span id="llm-result" class="set-result{{if .ok}} is-ok{{else}} is-bad{{end}}">{{.text}}</span>{{end}}
+
+{{define "llm-models"}}<datalist id="llm-models">{{range .models}}<option value="{{.}}">{{end}}</datalist><span class="meta">{{len .models}} models: pick one in the Model field.</span>{{end}}
+
+{{define "settings-engines"}}
+{{range .Groups}}
+<div class="set-group">
+  <div class="set-label-row"><span class="set-label">{{.Label}}</span><span class="meta">default · shown in picker</span></div>
+  <div class="set-panel set-list">
+    {{$mode := .Mode}}
+    {{range .Rows}}
+    <div class="set-row set-engine">
+      <label class="set-default" title="Make default"><input type="radio" name="default.{{$mode}}" value="{{.ID}}" {{if .Default}}checked{{end}}><span aria-hidden="true"></span><span class="sr-only">Default for {{$mode}}</span></label>
+      <span class="engine-code">{{.Code}}</span>
+      <span class="set-text"><span class="set-name">{{.Name}}</span><span class="chips"><span class="chip">{{.Via}}</span><span class="chip{{if .Free}} chip-free{{end}}">{{.Cost}}</span></span></span>
+      {{template "switch" (dict "name" (printf "on.%s" .ID) "on" .On "label" (printf "Show %s" .Name))}}
+    </div>
+    {{end}}
+  </div>
+</div>
+{{end}}
+<div class="set-row set-toggle-row set-panel">
+  <span class="set-text"><span class="set-name">Hide engines that aren't ready</span><span class="meta">Otherwise they show in the picker with the reason they can't run.</span></span>
+  {{template "switch" (dict "name" "hide_unready" "on" .HideUnready "label" "Hide engines that aren't ready")}}
+</div>
+<div class="set-group">
+  <div class="set-label">New runs start with</div>
+  <div class="set-panel set-list">
+    <div class="set-row"><span class="set-name grow">Resolution</span>
+      <div class="segmented segmented-inline">
+        {{range $r := list "480" "720" "1080"}}<label><input type="radio" name="resolution" value="{{$r}}" {{if eq $r $.Resolution}}checked{{end}}><span>{{$r}}p</span></label>{{end}}
+      </div></div>
+    <div class="set-row"><span class="set-text"><span class="set-name">Runs at the same time</span><span class="meta">Applies to runs on the local GPU. Billed engines always run in parallel.</span></span>
+      <div class="segmented segmented-inline">
+        {{range $n := list 1 2 4}}<label><input type="radio" name="parallel" value="{{$n}}" {{if eq $n $.Parallel}}checked{{end}}><span>{{$n}}</span></label>{{end}}
+      </div></div>
+    <div class="set-row"><span class="set-text"><span class="set-name">Default for open models</span><span class="meta">Used by Long video and when resolving older image/video selections. The video picker offers separate Your ComfyUI and Comfy Cloud cards for Wan Animate 2, MiniMax H3 Pose / Control, and LTX-2.3. Cloud runs are billed by GPU time.</span></span>
+      <div class="segmented segmented-inline">
+        <label><input type="radio" name="open_images" value="comfyui" {{if ne .OpenImages "cloud"}}checked{{end}}><span>Your ComfyUI · free</span></label>
+        <label><input type="radio" name="open_images" value="cloud" {{if eq .OpenImages "cloud"}}checked{{end}}><span>Comfy Cloud · billed</span></label>
+      </div></div>
+    <div class="set-row set-toggle-row"><span class="set-text"><span class="set-name">Notify when a run finishes</span><span class="meta">A browser notification while Utsushi is in a background tab.</span></span>
+      {{template "switch" (dict "name" "notify" "on" .Notify "label" "Notify when a run finishes")}}</div>
+  </div>
+</div>
+{{end}}
+
+{{define "settings-spending"}}
+<div class="set-panel set-list">
+  <div class="set-row set-toggle-row"><span class="set-text"><span class="set-name">Show cost estimates</span><span class="meta">On the Generate button and in the engine picker.</span></span>
+    {{template "switch" (dict "name" "estimates" "on" .Estimates "label" "Show cost estimates")}}</div>
+  <div class="set-row"><span class="set-text"><span class="set-name">Confirm before a run costs more than</span><span class="meta">Counts every version. Runs whose price isn't published always ask.</span></span>
+    <div class="segmented segmented-inline">
+      {{range $o := list "1" "2" "5" "never"}}<label><input type="radio" name="confirm_over" value="{{$o}}" {{if eq $o $.ConfirmOver}}checked{{end}}><span>{{if eq $o "never"}}Never{{else}}${{$o}}{{end}}</span></label>{{end}}
+    </div></div>
+</div>
+<div class="set-panel set-list">
+  <div class="set-row set-toggle-row"><span class="set-text"><span class="set-name">Monthly cap</span><span class="meta">Resets on the 1st. Counts each finished run's estimate from published rates; Router runs without a published price count as $0.</span></span>
+    {{template "switch" (dict "name" "cap_on" "on" .CapOn "label" "Monthly cap")}}</div>
+  <div class="set-row"><label class="set-money">$<input class="field" name="cap" value="{{.Cap}}" inputmode="decimal"></label>
+    <div class="set-meter"><div class="bar"><span style="width: {{.Percent}}%"></span></div><span class="meta">{{.Spent}} spent this month{{if .Over}} · over the cap{{end}}</span></div></div>
+  <div class="set-row"><span class="set-name grow">When the cap is reached</span>
+    <div class="segmented segmented-inline">
+      <label><input type="radio" name="cap_action" value="ask" {{if ne .CapAction "block"}}checked{{end}}><span>Ask me</span></label>
+      <label><input type="radio" name="cap_action" value="block" {{if eq .CapAction "block"}}checked{{end}}><span>Block billed engines</span></label>
+    </div></div>
+</div>
+{{end}}
+
+{{define "settings-storage"}}
+<label class="set-field"><span class="set-label">Output folder</span>
+  <input class="field mono" name="out_dir" value="{{.OutDir}}" placeholder="Leave empty to keep results only in the library">
+  <span class="meta">Every finished result is also copied here, on the server. Empty turns copying off.</span></label>
+<label class="set-field"><span class="set-label-row"><span class="set-label">File names</span><span class="meta">{{.Tokens}}</span></span>
+  <input class="field mono" name="name_pattern" value="{{.NamePattern}}">
+  <span class="meta">→ {{.NameExample}}.mp4</span></label>
+<div class="set-panel set-list">
+  <div class="set-row set-toggle-row"><span class="set-text"><span class="set-name">Keep a copy of source clips</span><span class="meta">Needed for Compare and Recreate. Off removes a clip from the library once its last run is deleted.</span></span>
+    {{template "switch" (dict "name" "keep_sources" "on" .KeepSources "label" "Keep a copy of source clips")}}</div>
+  <div class="set-row"><span class="set-text"><span class="set-name">Delete results older than</span><span class="meta">Finished runs and their files. Runs in progress are never touched.</span></span>
+    <div class="segmented segmented-inline">
+      {{range $d := list 0 30 90}}<label><input type="radio" name="clean_days" value="{{$d}}" {{if eq $d $.CleanDays}}checked{{end}}><span>{{if eq $d 0}}Never{{else}}{{$d}} days{{end}}</span></label>{{end}}
+    </div></div>
+  <div class="set-row"><span class="set-text"><span class="set-name">Library</span><span class="meta">{{.LibrarySize}} · clips, references, and results</span></span></div>
+  <div class="set-row"><span class="set-text"><span class="set-name">Preview cache</span><span class="meta">{{.CacheSize}} · posters &amp; scrub frames{{if not .HasFFmpeg}} · ffmpeg is not installed, so none are made{{else}} · made with ffmpeg {{.FFmpeg}}{{end}}</span></span>
+    <button type="button" class="btn btn-secondary btn-small" hx-post="/settings/cache/clear" hx-target="#settings-dialog" hx-swap="innerHTML">Clear</button></div>
+</div>
+<details class="set-purge set-panel">
+  <summary class="set-name">Purge library storage…</summary>
+  <p class="set-note" id="purge-description">Permanently deletes all library clips, references, generated media, run history, remembered selections, and previews. Recorded spending totals reset. Written projects, episodes, and shot directions stay; their media links and take history are cleared. Settings, keys, downloaded models, and exported copies stay. Pending work must finish first. This cannot be undone.</p>
+  <label class="set-field"><span class="set-label">Type PURGE to confirm</span>
+    <input class="field mono" name="purge_confirm" autocomplete="off" spellcheck="false" aria-describedby="purge-description" placeholder="PURGE">
+  </label>
+  <button type="button" class="btn btn-confirm is-danger" data-purge-submit disabled
+          hx-post="/settings/storage/purge" hx-include="closest .set-purge" hx-target="#purge-result" hx-swap="innerHTML" hx-disabled-elt="this">Purge storage permanently</button>
+  <div id="purge-result" role="status" aria-live="polite"></div>
+</details>
+
+{{end}}
+
+{{define "settings-about"}}
+<div class="set-about">
+  <span class="brand-mark brand-mark-large" aria-hidden="true">写</span>
+  <span class="set-text"><span class="wordmark">utsushi<span class="wordmark-dot">.</span></span><span class="meta">build {{.Version}} · Go SDK {{.SDK}} · {{.Go}}</span></span>
+</div>
+<div class="set-panel set-list">
+  <div class="set-row"><span class="set-name grow">ComfyUI</span><span class="meta">{{.ComfyUI}}</span></div>
+  <div class="set-row"><span class="set-name grow">ffmpeg</span><span class="meta">{{.FFmpeg}}</span></div>
+  <div class="set-row"><span class="set-name grow">Source code</span><a href="https://github.com/regiellis/comfy-api-proxy-go" target="_blank" rel="noopener">GitHub →</a></div>
+  <div class="set-row"><span class="set-name grow">SDK documentation</span><a href="https://github.com/regiellis/comfy-api-proxy-go/tree/main/sdk" target="_blank" rel="noopener">Docs →</a></div>
+  <div class="set-row"><span class="set-name grow">Report a problem</span><button type="button" class="link-button" data-copy-diagnostics>Copy diagnostics</button></div>
+</div>
+<div class="set-panel set-list">
+  <div class="set-row set-toggle-row"><span class="set-text"><span class="set-name">Send crash reports</span><span class="meta">Off by default. Never includes prompts, media, or keys. {{.CrashCount}} saved on this machine.</span></span>
+    {{template "switch" (dict "name" "crash_reports" "on" .CrashReports "label" "Send crash reports")}}</div>
+  <label class="set-row set-field-inline"><span class="set-name">Send to</span><input class="field mono" name="crash_endpoint" value="{{.CrashEndpoint}}" placeholder="https://your-endpoint · reports stay local until set"></label>
+</div>
+{{end}}

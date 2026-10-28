@@ -1,0 +1,15 @@
+{
+ "video": "174.file",
+ "references": "136.ref_images.ref_image_%d",
+ "prompt": "138.value",
+ "seed": "129.noise_seed",
+ "width": "136.width",
+ "height": "136.height",
+ "multiple": 32,
+ "length": "132.value",
+ "output": "707",
+ "control": [
+  "172.control_video"
+ ],
+ "control_from": "700:692"
+}

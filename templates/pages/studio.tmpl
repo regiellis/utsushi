@@ -1,0 +1,388 @@
+{{define "studio"}}
+<div class="studio" hc-data="studio()" data-picked="{{.picked}}" hc-on:change="update()" hc-on:input="update()" hc-on:htmx:after:swap="update()"
+     hc-on:click="pickTag($event)" hc-on:keydown="keys($event)" hc-on:dragover="dragOver($event)" hc-on:drop="drop($event)">
+  <aside class="panel" aria-label="{{.modeLabel}} setup">
+    <div class="panel-scroll">
+      <p class="lede">
+        {{if eq .mode "motion"}}Recast the people in a clip. Motion, camera, and timing stay. The cast comes from your references.
+        {{else if eq .mode "style"}}One clip, any style. Every frame takes the look. Motion, camera, and framing stay as filmed. Add characters if you want them in it.
+        {{else}}Replace one thing in a clip and keep the rest. Say what changes, and a reference shows what it becomes.{{end}}
+      </p>
+
+      {{template "clip-block" .clip}}
+
+      {{if eq .mode "style"}}
+      <section class="group" aria-labelledby="style-label">
+        <div class="label-row"><span id="style-label">Style</span><span>{{len .styles}} looks</span></div>
+        <div id="upload-style-notice" class="notice-slot" aria-live="polite"></div>
+        <div class="styles" id="styles" role="radiogroup" aria-labelledby="style-label">
+          {{range .styles}}{{template "style-tile" .}}{{end}}
+          <label class="cast-action style-action" for="style-file">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Your image<span class="cast-action-note">any picture</span>
+          </label>
+        </div>
+        <form class="sr-only" hx-post="/media?kind=image&amp;for=style" hx-trigger="change" hx-target="#styles" hx-swap="afterbegin"
+              enctype="multipart/form-data" hc-on:htmx:after:request="$event.currentTarget.reset()">
+          <input type="file" name="file" accept="image/png,image/jpeg,image/webp" id="style-file">
+        </form>
+      </section>
+      {{end}}
+
+      <section class="group" aria-labelledby="cast-label">
+        <div class="label-row"><span id="cast-label">{{if eq .mode "motion"}}Cast{{else if eq .mode "style"}}Characters · optional{{else}}Reference{{end}}</span><span data-cast-count></span></div>
+        <div class="picked" data-picked hidden></div>
+        <details class="picker ref-picker">
+          <summary class="engine-row pick-row">
+            <span class="engine-code pick-plus" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+            <span class="engine-text">
+              <span class="engine-name" data-ref-cta>Choose references</span>
+              <span class="pick-rule" data-ref-rule></span>
+            </span>
+            <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </summary>
+          <div class="popover popover-wide" role="dialog" aria-label="Reference images">
+            <div class="label-row popover-head"><span>References · <span data-ref-rule-head></span></span><span>esc</span></div>
+            <p class="pick-for" data-refs-for></p>
+            <div class="pick-tabs" role="tablist" aria-label="Reference kinds" data-ref-tabs hidden>
+              <button type="button" role="tab" data-ref-tab="image" aria-selected="true">Images <span data-kind-count="image"></span></button>
+              <button type="button" role="tab" data-ref-tab="video" aria-selected="false">Videos <span data-kind-count="video"></span></button>
+              <button type="button" role="tab" data-ref-tab="audio" aria-selected="false">Audio <span data-kind-count="audio"></span></button>
+            </div>
+            <div class="pick-panel" data-ref-panel="image">
+              <div class="pick-actions">
+                <label class="btn btn-secondary btn-small" for="image-file">Upload</label>
+                <button type="button" class="btn btn-secondary btn-small" hx-get="/images/new" hx-target="#image-dialog" hx-swap="innerHTML">
+                  <svg viewBox="0 0 24 24" class="spark" aria-hidden="true"><path d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z"/></svg>Create an image
+                </button>
+                <span class="grow"></span><span class="meta" data-cast-count></span>
+              </div>
+              <div id="upload-image-notice" class="notice-slot" aria-live="polite"></div>
+              <div class="pick-scroll">
+                <div class="cast bento" id="images" aria-label="Reference images" data-bento-cell="64">
+                  {{range .images}}{{template "image-tile" .}}{{end}}
+                </div>
+                <p class="meta pick-empty" data-empty="image">No images yet. Upload one, or create one.</p>
+              </div>
+            </div>
+            <div class="pick-panel" data-ref-panel="video" hidden>
+              <div class="pick-actions">
+                <label class="btn btn-secondary btn-small" for="ref-video-file">Upload video</label>
+                <span class="grow"></span><span class="meta" data-kind-rule="video"></span>
+              </div>
+              <div id="upload-refvideo-notice" class="notice-slot" aria-live="polite"></div>
+              <div class="pick-scroll">
+                <div class="cast cast-video" id="ref-videos" aria-label="Reference videos">
+                  {{range .refVideos}}{{template "ref-video-tile" .}}{{end}}
+                </div>
+                <p class="meta pick-empty" data-empty="video">No videos yet. Upload an MP4.</p>
+              </div>
+            </div>
+            <div class="pick-panel" data-ref-panel="audio" hidden>
+              <div class="pick-actions">
+                <label class="btn btn-secondary btn-small" for="audio-file">Upload audio</label>
+                <span class="grow"></span><span class="meta" data-kind-rule="audio"></span>
+              </div>
+              <div id="upload-audio-notice" class="notice-slot" aria-live="polite"></div>
+              <div class="pick-scroll">
+                <div class="cast" id="audios" aria-label="Reference audio">
+                  {{range .audios}}{{template "audio-tile" .}}{{end}}
+                </div>
+                <p class="meta pick-empty" data-empty="audio">No audio yet. Upload a WAV or MP3.</p>
+              </div>
+            </div>
+            <div class="pick-foot"><span class="meta" data-pick-foot>JPEG, PNG, or WebP · picked in order as @1, @2</span><button type="button" class="btn btn-secondary btn-small" data-picker-close>Done</button></div>
+          </div>
+        </details>
+        <form class="sr-only" hx-post="/media?kind=image" hx-trigger="change" hx-target="#images" hx-swap="afterbegin"
+              enctype="multipart/form-data" hc-on:htmx:after:request="$event.currentTarget.reset()">
+          <input type="file" name="file" accept="image/png,image/jpeg,image/webp" id="image-file">
+        </form>
+        <form class="sr-only" hx-post="/media?kind=video&amp;for=ref" hx-trigger="change" hx-target="#ref-videos" hx-swap="afterbegin"
+              enctype="multipart/form-data" hc-on:htmx:after:request="$event.currentTarget.reset()">
+          <input type="file" name="file" accept="video/mp4" id="ref-video-file">
+        </form>
+        <form class="sr-only" hx-post="/media?kind=audio" hx-trigger="change" hx-target="#audios" hx-swap="afterbegin"
+              enctype="multipart/form-data" hc-on:htmx:after:request="$event.currentTarget.reset()">
+          <input type="file" name="file" accept="audio/wav,audio/x-wav,audio/mpeg,.wav,.mp3" id="audio-file">
+        </form>
+      </section>
+
+      {{template "engine-block" .engineBlock}}
+
+      <section class="group">
+        <label class="label-row" for="prompt"><span>Prompt</span><span data-prompt-note>optional</span></label>
+        <div class="prompt">
+          <button type="button" class="prompt-expand" data-prompt-expand aria-label="Open a larger editor" title="Open a larger editor">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg>
+          </button>
+          <div class="prompt-field" data-tag-field>
+            <div class="prompt-mirror" data-prompt-mirror aria-hidden="true"></div>
+            <textarea id="prompt" name="prompt" form="run-form" rows="3" aria-autocomplete="list"
+                      placeholder="{{if eq .mode "motion"}}Keep the camera move. Recast the dancer as @1.{{else}}Replace the coffee cup on the table with a glass of orange juice.{{end}}">{{.prefill}}</textarea>
+            <div class="tag-menu" data-tag-menu role="listbox" aria-label="References to tag" hidden></div>
+          </div>
+          <div class="prompt-tags" data-prompt-tags>
+            <span data-tag-list></span>
+            <button type="button" class="chip chip-tag chip-clip" data-insert="@clip">@clip</button>
+            <span class="grow"></span><span data-tag-hint>type @ to reference</span>
+          </div>
+          {{if or .page.Improve .page.Describe .page.Suggest}}
+          <div class="prompt-ai">
+            {{if .page.Improve}}<button type="button" class="chip chip-ai" data-llm="improve" title="Rewrite the prompt for the chosen engine">✦ Improve</button>{{end}}
+            {{if .page.Describe}}<button type="button" class="chip chip-ai" data-llm="describe" title="Describe the first cast reference">Describe @1</button>{{end}}
+            {{if .page.Suggest}}<button type="button" class="chip chip-ai" data-llm="suggest" title="Draft a prompt from frames of the clip">Suggest from clip</button>{{end}}
+            <button type="button" class="chip" data-llm-undo hidden>Undo</button>
+            <span class="grow"></span><span class="meta" data-llm-status></span>
+          </div>
+          {{end}}
+        </div>
+      </section>
+
+      <section class="group">
+        <div class="label-row"><span>Versions</span><span>one run each, different seeds</span></div>
+        <div class="segmented segmented-4" role="radiogroup" aria-label="Versions">
+          {{range $n := .versionChoices}}
+          <label><input type="radio" name="versions" value="{{$n}}" form="run-form" {{if eq $n 1}}checked{{end}}><span>{{$n}}</span></label>
+          {{end}}
+        </div>
+      </section>
+    </div>
+
+    <form id="run-form" class="panel-foot" hx-post="/runs" hx-target="#form-errors" hx-swap="innerHTML" data-spend="{{.page.Spend}}">
+      <input type="hidden" name="mode" value="{{.mode}}">
+      <input type="hidden" name="story_project" value="{{.storyProject}}"><input type="hidden" name="story_episode" value="{{.storyEpisode}}"><input type="hidden" name="story_shot" value="{{.storyShot}}">
+      <input type="hidden" name="pin" value="{{.pin}}" data-pin>
+      <div data-refs-inputs></div>
+      <div id="form-errors" aria-live="assertive"></div>
+      <button class="generate" data-generate>
+        <span class="generate-label">Generate</span>
+        <span class="generate-meta" data-generate-meta></span>
+      </button>
+    </form>
+  </aside>
+
+  <dialog class="prompt-dialog" id="prompt-dialog" aria-labelledby="prompt-dialog-title">
+    <div class="prompt-dialog-head">
+      <h2 id="prompt-dialog-title">Prompt</h2>
+      <span class="meta" data-prompt-count></span>
+    </div>
+    <div class="prompt-field prompt-field-big" data-tag-field>
+      <div class="prompt-mirror" data-prompt-mirror aria-hidden="true"></div>
+      <textarea class="prompt-big" data-prompt-big aria-labelledby="prompt-dialog-title" aria-autocomplete="list"></textarea>
+      <div class="tag-menu" data-tag-menu role="listbox" aria-label="References to tag" hidden></div>
+    </div>
+    <div class="prompt-dialog-foot">
+      <span class="meta" data-prompt-dialog-tags></span>
+      <span class="grow"></span>
+      <button type="button" class="btn btn-secondary" data-prompt-done>Done</button>
+    </div>
+  </dialog>
+
+  {{template "run-feed" (dict "runs" .runs "title" "Recent" "library" false)}}
+  <div hidden hx-get="/status?mode={{.mode}}" hx-trigger="every 20s" hx-swap="none"></div>
+</div>
+{{end}}
+
+{{define "clip-block"}}
+<section class="group" id="clip-block" data-seconds="{{with .clip}}{{.Seconds}}{{else}}0{{end}}">
+  <div class="label-row"><span>Source clip</span><span data-clip-limits>MP4 ≤ 200 MB</span></div>
+  <div id="upload-video-notice" class="notice-slot" aria-live="polite"></div>
+  {{with .clip}}
+  <input type="hidden" name="source" value="{{.ID}}" form="run-form">
+  <div class="clip-card" data-clip-card>
+    <button type="button" class="clip-thumb" style="aspect-ratio: {{fallback .Aspect "0.5625"}}" aria-label="Play the clip"
+            data-peek="video" data-peek-src="{{.URL}}" data-lightbox="video" data-lightbox-src="{{.URL}}">
+      <video src="{{.URL}}#t=0.1" muted playsinline preload="metadata"{{if posters}} poster="{{.URL}}/poster"{{end}}></video>
+      <span class="play-dot" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg></span>
+    </button>
+    <div class="clip-info">
+      <div class="clip-name" title="{{.Label}}">{{.Label}}</div>
+      <div class="meta">{{.Meta}}</div>
+      <div class="clip-warning" data-clip-warning hidden></div>
+      <span class="grow"></span>
+      <div class="row">
+        <button type="button" class="btn btn-ghost btn-small" hx-get="/media/{{.ID}}/editor" hx-target="#clip-editor" hx-swap="innerHTML"
+                title="See the clip's cuts, choose your own, or split it into clips">Cuts</button>
+        <button type="button" class="btn btn-ghost btn-small" data-clear-clip hx-get="/clip" hx-target="#clip-block" hx-swap="outerHTML" title="Clear this selection; keep the clip in the library">Clear selection</button>
+      </div>
+    </div>
+  </div>
+  {{else}}
+  <label class="dropzone" for="video-file" data-dropzone>
+    <span class="dropzone-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+    <span class="dropzone-text"><span class="dropzone-title">Drop a clip or browse</span><span class="meta">MP4 ≤ 200 MB</span></span>
+  </label>
+  {{end}}
+  <details class="picker clip-picker">
+    <summary class="engine-row pick-row">
+      <span class="engine-code pick-plus" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4zM10 9.5v5l4-2.5z"/></svg></span>
+      <span class="engine-text">
+        <span class="engine-name">{{if .clip}}Change clip{{else}}Choose a clip{{end}}</span>
+        <span class="pick-rule">{{len .clips}} {{if .clip}}other clips{{else}}clips{{end}} in the library{{with .clip}} · or drop one on the card{{end}}</span>
+      </span>
+      <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </summary>
+    <div class="popover popover-wide" role="dialog" aria-label="Source clips">
+      <div class="label-row popover-head"><span>Source clips · <span data-clip-rule-head></span></span><span>esc</span></div>
+      <div class="pick-actions"><label class="btn btn-secondary btn-small" for="video-file">Upload video</label><span class="meta">MP4 ≤ 200 MB</span></div>
+      <div class="pick-scroll">
+        <div class="clip-grid" id="clip-choices">
+          {{with .clip}}
+          <div class="clip-cell" data-library-id="{{.ID}}" data-library-label="{{.Label}}">
+            <button type="button" class="clip-tile is-current" aria-current="true" aria-label="{{.Label}}, the current clip" data-picker-close
+                    data-peek="video" data-peek-src="{{.URL}}">
+              {{template "clip-tile-media" .}}
+            </button>
+            <button type="button" class="tile-remove" aria-label="Delete {{.Label}}" title="Delete from the library"
+                    hx-delete="/media/{{.ID}}?for=clip" hx-target="#clip-block" hx-swap="outerHTML"
+                    hx-confirm="Delete this clip from the library and disk? It is the current clip." data-confirm-ok="Delete" data-confirm-tone="danger">×</button>
+          </div>
+          {{end}}
+          {{range .clips}}{{template "clip-choice" .}}{{end}}
+        </div>
+      </div>
+      <div class="pick-foot"><span class="meta">Clearing a selection keeps the file. × deletes it.</span><button type="button" class="btn btn-secondary btn-small" data-picker-close>Done</button></div>
+    </div>
+  </details>
+  <form class="sr-only" hx-post="/media?kind=video" hx-trigger="change" hx-target="#clip-block" hx-swap="outerHTML" enctype="multipart/form-data" hc-on:htmx:after:request="$event.currentTarget.reset()">
+    <input type="file" name="file" accept="video/mp4" id="video-file">
+  </form>
+</section>
+{{end}}
+
+{{define "clip-choice"}}
+<div class="clip-cell" data-library-id="{{.ID}}" data-library-label="{{.Label}}">
+  <button type="button" class="clip-tile" hx-get="/clip?id={{.ID}}" hx-target="#clip-block" hx-swap="outerHTML"
+          aria-label="Use {{.Label}}" data-peek="video" data-peek-src="{{.URL}}">
+    {{template "clip-tile-media" .}}
+  </button>
+  <button type="button" class="tile-remove" aria-label="Delete {{.Label}}" title="Delete from the library"
+          hx-delete="/media/{{.ID}}?for=clip" hx-target="#clip-block" hx-swap="outerHTML"
+          hx-confirm="Delete this clip from the library and disk?" data-confirm-ok="Delete" data-confirm-tone="danger">×</button>
+</div>
+{{end}}
+
+{{define "clip-tile-media"}}
+{{if posters}}<img src="{{.URL}}/poster" alt="" loading="lazy">{{else}}<video src="{{.URL}}#t=0.1" muted playsinline preload="none"></video>{{end}}
+<span class="clip-tile-meta">{{with .Length}}{{.}}{{end}}</span>
+<span class="clip-tile-name">{{.Label}}</span>
+{{end}}
+
+{{define "engine-block"}}
+<div id="engine-block" data-facts="{{.engine.Facts}}" data-tags="{{.engine.Tags}}" data-engine-name="{{.engine.Name}}">
+  <input type="hidden" name="engine" value="{{.engine.ID}}" form="run-form">
+  <section class="group">
+    <div class="label-row"><span>Engine</span></div>
+    <details class="picker">
+      <summary class="engine-row">
+        {{template "engine-face" .engine}}
+        <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      </summary>
+      <div class="popover popover-models" role="listbox" aria-label="Engines for {{.modeLabel | lower}}">
+        <div class="label-row popover-head"><span>Engines for {{.modeLabel | lower}} · featured models first</span><span>esc</span></div>
+        <p class="model-hardware">{{.hardware}}<br>Local tiers: Low 12 GB · Mid 16–20 GB · High 24–32 GB. Budgets include reference headroom; resolution, duration, and offloading affect fit.</p>
+        <div class="engine-grid" role="presentation">
+        {{range .engines}}
+        <button type="button" class="engine-item engine-card{{if .Advice.Dim}} is-memory-risk{{end}}" role="option" aria-selected="{{if .Selected}}true{{else}}false{{end}}"
+                hx-get="/engine?mode={{$.mode}}&amp;engine={{.ID}}" hx-target="#engine-block" hx-swap="outerHTML">
+          <span class="engine-cover" aria-hidden="true">
+            <svg viewBox="0 0 480 240" fill="none" preserveAspectRatio="xMidYMid slice">
+              <path class="cover-sky" d="M0 0h480v240H0z"/>
+              <circle class="cover-sun" cx="350" cy="78" r="42"/>
+              <path class="cover-far" d="M0 171 95 66l92 105L290 98l190 87v55H0z"/>
+              <path class="cover-near" d="m0 210 146-84 121 83 117-59 96 55v35H0z"/>
+              <path d="M24 56V24h48m336 0h48v32M24 184v32h48m336 0h48v-32" stroke="white" stroke-opacity=".35"/>
+              <path d="m229 103 32 17-32 17z" fill="white" fill-opacity=".8"/>
+            </svg>
+            <span class="engine-code">{{.Code}}</span>
+          </span>
+          <span class="engine-text">
+            <span class="engine-title"><span>{{.Name}}</span><svg class="check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></span>
+            {{with .Featured}}<span class="model-featured">Featured · {{.}}</span>{{end}}
+            <span class="engine-desc">{{.Blurb}}</span>
+            {{template "model-advice" .Advice}}
+            <span class="engine-refs"><b>{{.RefRule}}</b>{{with .RefsFor}} · {{.}}{{end}}</span>
+            <span class="maker-rating{{with .Tier}} is-{{.}}{{end}}">{{if .Tier}}<b>{{.Meter}}</b> {{.RatingNote}}{{else}}<b>○○○</b> Untested{{end}}</span>
+            <span class="chips">
+              <span class="chip">{{.Via}}</span>
+              <span class="chip{{if .Free}} chip-free{{end}}">{{.CostLabel}}</span>
+              <span class="chip">{{.Hint}}</span>
+            </span>
+            {{with .Offline}}{{template "error-mark-quiet" (dict "title" .)}}{{end}}
+          </span>
+        </button>
+        {{end}}
+        </div>
+      </div>
+    </details>
+    {{template "engine-status" .engine}}
+  </section>
+  {{with .engine.Resolutions}}
+  <section class="group">
+    <div class="label-row"><span>Resolution</span>{{if (index . 0).Price}}<span>per second of output</span>{{end}}</div>
+    <div class="segmented segmented-{{len .}}" role="radiogroup" aria-label="Resolution">
+      {{range .}}
+      <label><input type="radio" name="resolution" value="{{.Value}}" form="run-form" {{if .Selected}}checked{{end}}>
+        <span>{{.Label}}{{with .Price}}<small>{{.}}</small>{{end}}</span></label>
+      {{end}}
+    </div>
+  </section>
+  {{end}}
+</div>
+{{end}}
+
+{{define "engine-face"}}
+<span class="engine-code">{{.Code}}</span>
+<span class="engine-text">
+  <span class="engine-name">{{.Name}}</span>
+  <span class="chips">
+    <span class="chip">{{.Via}}</span>
+    <span class="chip{{if .Free}} chip-free{{end}}">{{.CostLabel}}</span>
+  </span>
+</span>
+{{end}}
+
+{{define "engine-status"}}<span class="engine-status" id="engine-status-{{.ID}}">{{with .Offline}}{{template "error-mark-quiet" (dict "title" .)}}{{end}}</span>{{end}}
+
+
+{{define "studio-status"}}
+{{range .engines}}<span class="engine-status" id="engine-status-{{.ID}}" hx-swap-oob="true">{{with .Offline}}{{template "error-mark-quiet" (dict "title" .)}}{{end}}</span>{{end}}
+{{with .runtime}}
+<span class="pill-state{{if .LocalOK}} is-ok{{else}} is-bad{{end}}" id="pill-local" hx-swap-oob="true"><i></i>{{.Local}}</span>
+<span class="pill-state{{if .CloudOK}} is-ok{{else}} is-bad{{end}}" id="pill-cloud" hx-swap-oob="true"><i></i>{{.Cloud}}</span>
+{{end}}
+{{end}}
+
+{{define "style-tile"}}
+<div class="style-tile" id="style-{{.Key}}"
+     {{if .Pending}}hx-sse:connect="/sse?channels=media-{{.MediaID}}" hx-sse:close="done"
+     hc-on:connected="resync($event)" data-sync-url="/styles/{{.Key}}/tile"{{end}} hx-swap="innerHTML">
+  {{template "style-tile-body" .}}
+</div>
+{{end}}
+
+{{define "style-tile-body"}}
+<label class="style-pick"{{with .URL}} data-peek="image" data-peek-src="{{.}}"{{end}}>
+  <input type="radio" name="style" value="{{.Key}}" form="run-form" {{if .Selected}}checked{{end}}>
+  {{if .URL}}<img src="{{.URL}}" alt="" loading="lazy">{{else if .Pending}}<span class="shimmer" aria-hidden="true"></span>{{end}}
+  <span class="style-name">{{.Name}}</span>
+</label>
+{{end}}
+
+{{define "style-own-tile"}}
+<div class="style-tile" data-library-id="{{.ID}}" data-library-label="{{.Label}}">
+  <label class="style-pick" data-peek="image" data-peek-src="{{.URL}}">
+    <input type="radio" name="style" value="image:{{.ID}}" form="run-form" checked>
+    <img src="{{.URL}}" alt="" loading="lazy">
+    <span class="style-name">Your image</span>
+  </label>
+</div>
+{{end}}
+
+{{define "model-advice"}}
+<span class="model-advice">
+  <span class="chip">{{.Tier}}</span>
+  <span class="meta">{{.Detail}}</span>
+  {{with .Warning}}<span class="model-warning">{{.}}</span>{{end}}
+</span>
+{{end}}

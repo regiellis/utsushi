@@ -1,0 +1,122 @@
+{{define "image-dialog"}}
+<form id="image-form" class="maker" onsubmit="return false">
+  <header class="maker-head">
+    <div>
+      <h2>Create an image</h2>
+      <p class="lede">Characters, objects, and places to use as references. They land in your reference library.</p>
+    </div>
+    <button type="button" class="btn-icon btn-icon-boxed" data-image-close aria-label="Close">{{template "icon-close"}}</button>
+  </header>
+  <input type="hidden" name="touched" value="" data-image-touched>
+  <div data-image-refs></div>
+  <div class="maker-body" hx-post="/images/preview" hx-trigger="change, input changed delay:500ms from:[name=subject]"
+       hx-target="#image-preview" hx-swap="outerHTML" hx-include="#image-form">
+    <section class="group">
+      <div class="label-row"><span>Make a</span></div>
+      <div class="segmented segmented-{{len .Purposes}}" role="radiogroup" aria-label="Kind of image">
+        {{range .Purposes}}<label><input type="radio" name="purpose" value="{{.Value}}" {{if .Selected}}checked{{end}} data-image-purpose data-hint="{{.Hint}}"><span>{{.Label}}</span></label>{{end}}
+      </div>
+    </section>
+    <section class="group">
+      <label class="label-row" for="image-subject"><span>Describe it</span><span data-image-hint>{{.Hint}}</span></label>
+      <textarea id="image-subject" name="subject" class="field maker-subject" rows="3" maxlength="1500"
+                placeholder="{{.Hint}}">{{.Subject}}</textarea>
+    </section>
+    {{template "image-preview" .}}
+  </div>
+</form>
+{{end}}
+
+{{define "image-engine"}}
+<label class="set-card maker-engine{{if .Advice.Dim}} is-memory-risk{{end}}{{if .Offline}} is-offline{{end}}">
+  <input type="radio" name="engine" value="{{.ID}}" {{if .Selected}}checked{{end}}>
+  <span class="engine-code">{{.Code}}</span>
+  <span class="set-card-text">
+    <span class="set-card-name">{{.Name}}</span>
+    {{with .Featured}}<span class="model-featured">Featured · {{.}}</span>{{end}}
+    <span class="maker-blurb">{{.Blurb}}</span>
+    {{template "model-advice" .Advice}}
+    <span class="maker-rating{{with .Tier}} is-{{.}}{{end}}">{{if .Tier}}<b>{{.Meter}}</b> {{.Note}}{{else}}<b>○○○</b> Untested for this{{end}}</span>
+    <span class="chips">
+      <span class="chip">{{.Where}}</span>
+      <span class="chip{{if .Free}} chip-free{{end}}">{{.Cost}}</span>
+      <span class="chip">{{.RefRule}}</span>
+    </span>
+    {{with .Offline}}{{template "error-mark-quiet" (dict "title" .)}}{{end}}
+  </span>
+</label>
+{{end}}
+
+{{define "image-preview"}}
+<div id="image-preview" class="maker-preview">
+ <p class="model-hardware">{{.Hardware}}<br>Local: Low 12 GB · Mid 16–20 GB · High 24–32 GB. Memory budgets are estimates, including reference headroom.</p>
+  <p class="maker-rank">{{with .Best}}Best in our tests for {{$.PurposeNoun}}: {{join . ", "}}. {{end}}Featured models appear first. Quality is rated by test runs (●●● best, ●●○ good, ●○○ weak); untested ones have not been run for this yet.</p>
+    {{with .Featured}}<section class="group">
+      <div class="label-row"><span>Featured · contest models</span><span>quality rated separately</span></div>
+      <div class="maker-engines">{{range .}}{{template "image-engine" .}}{{end}}</div>
+    </section>{{end}}
+    <section class="group">
+      <div class="label-row"><span>Open models · local &amp; cloud</span><span>Choose where to run</span></div>
+      <div class="maker-engines">{{range .Open}}{{template "image-engine" .}}{{end}}</div>
+    </section>
+    <section class="group">
+      <div class="label-row"><span>Partner models · on Comfy Cloud</span><span>billed per image</span></div>
+      <div class="maker-engines">{{range .Partners}}{{template "image-engine" .}}{{end}}</div>
+    </section>
+
+  {{if .RefsShown}}
+  <section class="group">
+    <div class="label-row"><span>References · {{.RefRule}}</span><span>{{.RefCount}} picked · numbered in pick order</span></div>
+    {{if .Refs}}
+    <div class="maker-refs bento" data-bento-cell="60">
+      {{range .Refs}}
+      <label class="tile maker-ref" data-shape="{{.Shape}}" data-peek="image" data-peek-src="{{.URL}}">
+        <input type="checkbox" data-image-ref="{{.ID}}" {{if .Selected}}checked{{end}} aria-label="Use {{.Label}}">
+        <img src="{{.URL}}" alt="" loading="lazy">
+        <span class="tile-tag" aria-hidden="true">{{.Tag}}</span>
+      </label>
+      {{end}}
+    </div>
+    {{else}}<p class="meta">No images in the library yet. Make one with a text-only model first.</p>{{end}}
+  </section>
+  {{end}}
+  <div class="maker-row">
+    <section class="group">
+      <div class="label-row"><span>Shape</span></div>
+      <div class="segmented segmented-inline maker-wrap" role="radiogroup" aria-label="Shape">
+        {{range .Aspects}}<label><input type="radio" name="aspect" value="{{.Value}}" {{if .Selected}}checked{{end}}><span>{{.Label}}</span></label>{{end}}
+      </div>
+    </section>
+    {{with .Res}}
+    <section class="group">
+      <div class="label-row"><span>Resolution</span></div>
+      <div class="segmented segmented-inline" role="radiogroup" aria-label="Resolution">
+        {{range .}}<label><input type="radio" name="resolution" value="{{.Value}}" {{if .Selected}}checked{{end}}><span>{{.Label}}</span></label>{{end}}
+      </div>
+    </section>
+    {{end}}
+    <section class="group">
+      <div class="label-row"><span>Images</span></div>
+      <div class="segmented segmented-inline" role="radiogroup" aria-label="How many images">
+        {{range .Counts}}<label><input type="radio" name="count" value="{{.Value}}" {{if .Selected}}checked{{end}}><span>{{.Label}}</span></label>{{end}}
+      </div>
+    </section>
+  </div>
+  <section class="group">
+    <label class="label-row" for="image-prompt"><span>Prompt sent to {{.EngineName}}</span>
+      {{if .Touched}}<button type="button" class="link-button" data-image-reset>Write it from my choices again</button>{{else}}<span>written from your choices · edit it freely</span>{{end}}</label>
+    <textarea id="image-prompt" name="prompt" class="field maker-prompt" rows="5" data-image-prompt>{{.Prompt}}</textarea>
+  </section>
+  <div id="image-errors" class="notice-slot" aria-live="assertive"></div>
+  <div class="maker-foot">
+    <button type="button" class="generate" {{if .Blocked}}disabled{{end}}
+            hx-post="/images" hx-include="#image-form" hx-target="#images" hx-swap="afterbegin"
+            {{with .Confirm}}hx-confirm="{{.}}" data-confirm-ok="{{$.ConfirmOK}}"{{end}}>
+      <span class="generate-label">Create</span>
+      <span class="generate-meta">{{fallback .Blocked .Meta}}</span>
+    </button>
+  </div>
+</div>
+{{end}}
+
+{{define "image-tiles"}}{{range .tiles}}{{template "image-tile" .}}{{end}}{{end}}

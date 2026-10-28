@@ -1,0 +1,16 @@
+{
+ "video": "199.file",
+ "reference": "200.image",
+ "prompt": "129:211.on_false",
+ "seed": "129:704.seed",
+ "width": "129:113.value",
+ "height": "129:98.value",
+ "multiple": 64,
+ "length": "692.duration",
+ "output": "68",
+ "control": [
+  "129:115.image",
+  "129:694.image"
+ ],
+ "control_from": "697:70"
+}

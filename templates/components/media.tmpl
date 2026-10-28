@@ -1,0 +1,79 @@
+{{define "image-tile"}}
+<div class="tile" id="media-{{.ID}}" data-library-id="{{.ID}}" data-library-label="{{.Label}}" data-shape="{{.Shape}}"
+     {{if .Pending}}hx-sse:connect="/sse?channels=media-{{.ID}}" hx-sse:close="done"
+     hc-on:connected="resync($event)" data-sync-url="/media/{{.ID}}/tile"{{end}} hx-swap="innerHTML">
+  {{template "image-tile-body" .}}
+</div>
+{{end}}
+
+{{define "image-tile-body"}}
+{{if .Ready}}
+<label class="tile-pick" data-peek="image" data-peek-src="{{.URL}}">
+  <input type="checkbox" data-ref="{{.ID}}" data-kind="image" data-label="{{.Label}}" aria-label="Use {{.Label}}">
+  <img src="{{.URL}}" alt="{{.Label}}" loading="lazy">
+  <span class="tile-tag" aria-hidden="true"></span>
+  {{with .Badge}}<span class="tile-badge">{{.}}</span>{{end}}
+</label>
+<button type="button" class="tile-remove" aria-label="Delete {{.Label}} from the library" title="Delete from library"
+        hx-delete="/media/{{.ID}}" hx-target="closest .tile" hx-swap="outerHTML"
+        hx-confirm="Delete this image from the library and disk?" data-confirm-ok="Delete" data-confirm-tone="danger">×</button>
+{{else if .Pending}}
+<div class="tile-pending">
+  <span class="shimmer" aria-hidden="true"></span>
+  <span class="tile-note">{{.Note}}</span>
+</div>
+{{else}}
+<div class="tile-failed">
+  {{template "error-mark" (dict "title" .Error)}}
+  <button type="button" class="tile-remove" aria-label="Remove"
+          hx-delete="/media/{{.ID}}" hx-target="closest .tile" hx-swap="outerHTML">×</button>
+</div>
+{{end}}
+{{end}}
+
+{{define "ref-video-tile"}}
+{{if .Ready}}
+<div class="tile tile-video" id="ref-video-{{.ID}}" data-library-id="{{.ID}}" data-library-label="{{.Label}}">
+  <label class="tile-pick" data-peek="video" data-peek-src="{{.URL}}">
+    <input type="checkbox" data-ref="{{.ID}}" data-kind="video" data-seconds="{{.Seconds}}" data-label="{{.Label}}" aria-label="Use {{.Label}} as a reference video">
+    {{if posters}}<img src="{{.URL}}/poster" alt="" loading="lazy">{{else}}<video src="{{.URL}}#t=0.1" muted playsinline preload="none"></video>{{end}}
+    <span class="tile-tag" aria-hidden="true"></span>
+    <span class="tile-badge">{{.Length}}</span>
+  </label>
+  <button type="button" class="tile-remove" aria-label="Delete {{.Label}} from the library" title="Delete from library"
+          hx-delete="/media/{{.ID}}" hx-target="closest .tile" hx-swap="outerHTML"
+          hx-confirm="Delete this video from the library and disk?" data-confirm-ok="Delete" data-confirm-tone="danger">×</button>
+  <button type="button" class="tile-edit" aria-label="Cuts of {{.Label}}" title="See its cuts, or split it into clips"
+          hx-get="/media/{{.ID}}/editor" hx-target="#clip-editor" hx-swap="innerHTML">{{template "icon-cut"}}</button>
+</div>
+{{end}}
+{{end}}
+
+{{define "audio-tile"}}
+{{if .Ready}}
+<div class="tile tile-audio" id="audio-{{.ID}}" data-library-id="{{.ID}}" data-library-label="{{.Label}}">
+  <label class="tile-pick">
+    <input type="checkbox" data-ref="{{.ID}}" data-kind="audio" data-seconds="{{.Seconds}}" data-label="{{.Label}}" aria-label="Use {{.Label}} as reference audio">
+    <span class="tile-audio-face">{{template "icon-audio"}}<span class="tile-audio-name">{{.Label}}</span></span>
+    <span class="tile-tag" aria-hidden="true"></span>
+    <span class="tile-badge">{{.Length}}</span>
+  </label>
+  <button type="button" class="tile-play" data-play-audio="{{.URL}}" aria-label="Play {{.Label}}">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg>
+  </button>
+  <button type="button" class="tile-remove" aria-label="Delete {{.Label}} from the library" title="Delete from library"
+          hx-delete="/media/{{.ID}}" hx-target="closest .tile" hx-swap="outerHTML"
+          hx-confirm="Delete this audio from the library and disk?" data-confirm-ok="Delete" data-confirm-tone="danger">×</button>
+</div>
+{{end}}
+{{end}}
+
+{{define "notice"}}<p class="notice">{{.message}}</p>{{end}}
+
+{{define "form-errors"}}
+{{if .errors}}
+<ul class="form-errors">
+  {{range .errors}}<li>{{.}}</li>{{end}}
+</ul>
+{{end}}
+{{end}}

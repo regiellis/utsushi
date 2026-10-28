@@ -1,0 +1,126 @@
+{{define "story-home"}}
+<div class="story-shell">
+  <aside class="story-rail">
+    <span class="story-eyebrow">Your studio</span>
+    <h2>Stories worth<br>coming back to.</h2>
+    <nav aria-label="Projects">{{range .projects}}<a class="story-project-link" href="/projects/{{.ID}}" {{if eq .ID $.project.ID}}aria-current="page"{{end}}><span>{{.Title}}</span><small>{{.Genre}}</small></a>{{end}}</nav>
+    {{if .project.ID}}<details class="story-disclosure"><summary>＋ New project</summary>
+      <form method="post" action="/projects" class="story-form">{{with $.csrfToken}}<input type="hidden" name="csrf_token" value="{{.}}">{{end}}
+        <label>Project title<input class="field" name="title" required maxlength="120" placeholder="Give your story a name"></label>
+        <label>Genre<input class="field" name="genre" maxlength="80" placeholder="Action, romance, horror…"></label>
+        <button class="btn btn-confirm">Create project</button>
+      </form>
+    </details>{{end}}
+    <div class="story-rail-foot"><span class="story-eyebrow">Made with ComfyUI</span><p>Your cast. Your world.<br>Every episode connected.</p><button type="button" class="link-button" data-story-tour>Show me around →</button></div>
+  </aside>
+  <section class="story-main">
+    {{if .project.ID}}
+    <header class="story-project-head">
+      <div><span class="story-eyebrow">Series / {{if .project.Genre}}{{.project.Genre}}{{else}}Your genre, your rules{{end}}</span><h1>{{.project.Title}}</h1><p>{{if .project.Premise}}{{.project.Premise}}{{else}}Build a world. Tell it one episode at a time.{{end}}</p></div>
+      <div class="story-format"><strong>9:16</strong><span>Vertical stories</span></div>
+    </header>
+    <nav class="story-tabs" aria-label="Project sections">
+      <a href="/projects/{{.project.ID}}" {{if ne .tab "world"}}aria-current="page"{{end}}>Episodes <span>{{len .episodes}}</span></a>
+      <a href="/projects/{{.project.ID}}?tab=world" {{if eq .tab "world"}}aria-current="page"{{end}}>Cast &amp; world <span>{{len .assets}}</span></a>
+      <span class="grow"></span>
+      <button type="button" class="link-button" data-story-open="story-project-settings">Story brief ↗</button>
+    </nav>
+    {{if eq .tab "world"}}
+    <div class="story-section-head"><div><h2>A world that remembers.</h2><p>Keep character identities, recurring props, and locations together across episodes.</p></div><div class="story-section-actions"><button class="btn btn-secondary" data-story-open="story-upload">Upload reference</button><button class="btn btn-secondary" hx-get="/images/new" hx-target="#image-dialog" hx-swap="innerHTML">Create reference</button><button class="btn btn-confirm" data-story-open="story-asset-new">＋ Add to world</button></div></div>
+    <div class="story-assets">
+      {{range .assets}}{{$asset := .}}<article class="story-asset">
+        <div class="story-asset-image">{{if eq .Media.Kind "image"}}<img src="{{.Media.URL}}" alt="{{.Name}}" loading="lazy">{{else}}<span>{{.Kind}}</span>{{end}}</div>
+        <span class="story-eyebrow">{{.Kind}}</span><h3>{{.Name}}</h3><p>{{.Description}}</p>
+        <details class="story-disclosure"><summary>Edit identity &amp; reference</summary><form class="story-form" method="post" action="/projects/{{$.project.ID}}/edit">{{with $.csrfToken}}<input type="hidden" name="csrf_token" value="{{.}}">{{end}}
+          <input type="hidden" name="action" value="asset-edit"><input type="hidden" name="asset" value="{{.ID}}">
+          <label>Name<input class="field" name="name" value="{{.Name}}" required maxlength="80"></label>
+          <label>Description<textarea class="field" name="description" rows="4">{{.Description}}</textarea></label>
+          <label>Reference<select class="field" name="media"><option value="">No reference</option>{{range $.media}}<option value="{{.ID}}" {{if eq .ID $asset.MediaID}}selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+          <button class="btn btn-secondary">Save asset</button>
+        </form></details>
+      </article>{{else}}<div class="story-empty"><span class="story-eyebrow">Start with someone</span><h2>Who lives in this story?</h2><p>Add a character, a signature prop, or a place your audience will recognize.</p><button class="btn btn-confirm" data-story-open="story-asset-new">Build your world</button></div>{{end}}
+    </div>
+    {{else}}
+    <div class="story-section-head"><div><h2>Your episodes</h2><p>From the opening hook to the next cliffhanger.</p></div><button class="btn btn-confirm" data-story-open="story-episode-new">＋ New episode</button></div>
+    <div class="episode-board">
+      {{range .episodes}}<a class="episode-card" href="/projects/{{$.project.ID}}/episodes/{{.ID}}">
+        <header><span class="story-eyebrow">Episode {{printf "%02d" .Number}}</span><span class="episode-state">{{if .Ready}}In production{{else}}Draft{{end}}</span></header>
+        <div class="episode-meta"><span>{{len .Shots}} shots</span><span>{{.Duration}}s planned</span><span>{{.Ready}} takes chosen</span></div>
+        <div class="episode-cover">{{if .Cover}}<img src="{{.Cover}}" alt="" loading="lazy">{{else}}<span class="episode-number">{{printf "%02d" .Number}}</span><span class="episode-cover-caption">A story waiting to unfold</span>{{end}}<span class="episode-format">9:16</span></div>
+        <div class="episode-copy"><h3>{{.Title}}</h3><p>{{if .Synopsis}}{{.Synopsis}}{{else}}Open the episode to shape its scenes and shots.{{end}}</p><span class="episode-open">Enter episode <b>↗</b></span></div>
+      </a>{{end}}
+      <button class="episode-card episode-add" data-story-open="story-episode-new"><span>＋</span><h3>{{if .episodes}}The next chapter{{else}}Your first episode{{end}}</h3><p>Start with a beat.<br>Build it shot by shot.</p></button>
+    </div>
+    {{end}}
+    <dialog id="story-project-settings" class="story-dialog"><form method="post" action="/projects/{{.project.ID}}/edit" class="story-form">{{with $.csrfToken}}<input type="hidden" name="csrf_token" value="{{.}}">{{end}}<div class="story-dialog-head"><h2>Story brief</h2><button type="button" class="btn-icon" data-story-close aria-label="Close">×</button></div><input type="hidden" name="action" value="project"><label>Title<input class="field" name="title" value="{{.project.Title}}" required maxlength="120"></label><label>Genre<input class="field" name="genre" value="{{.project.Genre}}"></label><label>Premise<textarea class="field" name="premise" rows="3">{{.project.Premise}}</textarea></label><label>Visual direction<textarea class="field" name="look" rows="3" placeholder="Lighting, palette, camera, era…">{{.project.Look}}</textarea></label><button class="btn btn-confirm">Save brief</button></form></dialog>
+    <dialog id="story-episode-new" class="story-dialog"><form method="post" action="/projects/{{.project.ID}}/edit" class="story-form">{{with $.csrfToken}}<input type="hidden" name="csrf_token" value="{{.}}">{{end}}<div class="story-dialog-head"><h2>A new episode</h2><button type="button" class="btn-icon" data-story-close aria-label="Close">×</button></div><input type="hidden" name="action" value="episode"><label>Episode title<input class="field" name="title" required maxlength="120" placeholder="The first encounter"></label><label>What happens?<textarea class="field" name="synopsis" rows="3" placeholder="The hook, the turn, and where we leave them."></textarea></label><button class="btn btn-confirm">Create episode →</button></form></dialog>
+    <dialog id="story-asset-new" class="story-dialog"><form method="post" action="/projects/{{.project.ID}}/edit" class="story-form">{{with $.csrfToken}}<input type="hidden" name="csrf_token" value="{{.}}">{{end}}<div class="story-dialog-head"><h2>Add to your world</h2><button type="button" class="btn-icon" data-story-close aria-label="Close">×</button></div><input type="hidden" name="action" value="asset"><label>Kind<select class="field" name="kind"><option value="character">Character</option><option value="prop">Prop</option><option value="location">Location</option></select></label><label>Name<input class="field" name="name" required maxlength="80" placeholder="Maya"></label><label>Identity &amp; continuity<textarea class="field" name="description" rows="4" placeholder="Appearance, clothing, distinguishing details. What must stay consistent?"></textarea></label><label>Reference from your library<select class="field" name="media"><option value="">Add a reference later</option>{{range .media}}<option value="{{.ID}}">{{.Label}}</option>{{end}}</select></label><button class="btn btn-confirm">Save to world</button></form></dialog>
+    {{else}}
+    <div class="story-welcome"><span class="story-eyebrow">Utsushi / Vertical storytelling studio</span><h1>Small screen.<br><em>Whole worlds.</em></h1><p>Build your cast, direct your shots, and tell stories worth following. Start with a project. Every episode grows from there.</p><form method="post" action="/projects" class="story-form">{{with $.csrfToken}}<input type="hidden" name="csrf_token" value="{{.}}">{{end}}<label>Your project<input class="field" name="title" required maxlength="120" placeholder="Name your series"></label><label>Genre<input class="field" name="genre" placeholder="Any genre. Your point of view."></label><button class="btn btn-confirm">Start your story →</button></form><div class="story-welcome-notes"><span>01 / Build your world</span><span>02 / Direct each shot</span><span>03 / Choose your takes</span></div></div>
+    {{end}}
+  </section>
+</div>
+{{template "story-upload" .}}
+{{template "story-tour"}}
+{{if and (not .runtime.LocalOK) (not .runtime.CloudOK)}}
+<dialog class="story-dialog story-form" id="story-setup" data-story-first-setup><div class="story-dialog-head"><h2>Choose where to create</h2><button class="btn-icon" data-story-close aria-label="Explore without setup">×</button></div><p>You can plan episodes now. Connect ComfyUI or add a Comfy API key when you’re ready to generate.</p><button class="btn btn-confirm" data-story-close hx-get="/settings?sec=server" hx-target="#settings-dialog" hx-swap="innerHTML">Set up local, remote, or cloud</button><button class="btn btn-secondary" data-story-close>Explore the studio first</button></dialog>
+{{end}}
+{{end}}
+
+{{define "story-workspace"}}
+<div class="episode-workspace">
+  <header class="episode-workspace-head"><div><a class="story-eyebrow" href="/projects/{{.project.ID}}">← {{.project.Title}} / Episodes</a><h1>{{.episode.Title}}</h1></div><span class="meta">9:16 · {{len .scenes}} scenes · {{len .shots}} shots · {{.duration}}s planned</span><span class="grow"></span><button class="btn btn-secondary" data-story-open="episode-brief">Episode brief</button><button class="btn btn-confirm" data-story-play>▶ Preview sequence</button></header>
+  <div class="episode-work-area">
+    <aside class="episode-scenes"><div class="story-section-head"><h2>Scenes &amp; shots</h2></div>
+      {{range .scenes}}{{$scene := .}}<section class="episode-scene"><span class="story-eyebrow">{{if .}}{{.}}{{else}}Unassigned scene{{end}}</span>{{range $.shots}}{{if eq .Scene $scene}}<a href="/projects/{{$.project.ID}}/episodes/{{$.episode.ID}}?shot={{.ID}}" {{if .Selected}}aria-current="page"{{end}}><span>{{printf "%02d" .Number}}</span><span>{{.Title}}<small>{{.Seconds}}s · {{if .Media.Ready}}Take selected{{else}}Planned{{end}}</small></span></a>{{end}}{{end}}</section>{{end}}
+      <form class="story-form" method="post" action="/projects/{{.project.ID}}/edit">{{with $.csrfToken}}<input type="hidden" name="csrf_token" value="{{.}}">{{end}}<input type="hidden" name="action" value="shot"><input type="hidden" name="episode" value="{{.episode.ID}}"><label>Scene<input class="field" name="scene" placeholder="Scene 1" value="{{.selected.Scene}}" list="story-scenes"></label><datalist id="story-scenes">{{range .scenes}}<option value="{{.}}">{{end}}</datalist><button class="btn btn-secondary">＋ Add shot</button></form>
+      <a class="story-world-link" href="/projects/{{.project.ID}}?tab=world">Cast &amp; world ↗ <span>{{len .project.Assets}} reusable assets</span></a>
+    </aside>
+    <section class="episode-stage">
+      <div class="episode-stage-bar"><span class="story-eyebrow">{{if .selected.ID}}Shot {{printf "%02d" .selected.Number}} / {{.selected.Title}}{{else}}Your episode starts here{{end}}</span><span class="grow"></span><button class="link-button" data-story-tour>Guide</button></div>
+      <div class="episode-preview" data-story-preview>
+        {{if .selected.Media.Ready}}{{if eq .selected.Media.Kind "video"}}<video src="{{.selected.Media.URL}}" controls playsinline preload="metadata"></video>{{else}}<img src="{{.selected.Media.URL}}" alt="Selected take for {{.selected.Title}}">{{end}}{{else}}<div class="episode-preview-empty"><span class="story-eyebrow">Frame your story</span><div class="frame-guides"><span>9:16</span></div><p>{{if .selected.ID}}Choose a take or open a tool to create one.{{else}}Add the first shot to begin.{{end}}</p></div>{{end}}
+      </div>
+      <p class="episode-play-status" data-story-play-status role="status">Preview follows shot order and planned duration. Shots without takes are skipped.</p>
+      {{if .selected.ID}}<div class="episode-toolstrip" aria-label="Shot tools">
+        <button data-story-tool="/motion?project={{.project.ID}}&amp;episode={{.episode.ID}}&amp;shot={{.selected.ID}}&amp;embedded=1">Recast</button>
+        <button data-story-tool="/swap?project={{.project.ID}}&amp;episode={{.episode.ID}}&amp;shot={{.selected.ID}}&amp;embedded=1">Replace</button>
+        <button data-story-tool="/style?project={{.project.ID}}&amp;episode={{.episode.ID}}&amp;shot={{.selected.ID}}&amp;embedded=1">Restyle</button>
+        <button data-story-tool="/long?embedded=1">Generate video</button>
+        <button type="button" hx-get="/images/new" hx-target="#image-dialog" hx-swap="innerHTML">Create reference</button>
+        <button data-story-tool="/tools?embedded=1">Finish &amp; prepare</button>
+      </div>{{end}}
+      <div class="episode-storyboard">{{range .shots}}<a href="/projects/{{$.project.ID}}/episodes/{{$.episode.ID}}?shot={{.ID}}" {{if .Selected}}aria-current="page"{{end}}><span class="story-eyebrow">{{printf "%02d" .Number}} / {{.Scene}}</span><strong>{{.Title}}</strong><p>{{if .Prompt}}{{.Prompt}}{{else}}Describe this moment.{{end}}</p><span class="meta">{{.Seconds}}s · {{if .Media.Ready}}Take selected{{else}}Planned{{end}}</span></a>{{end}}</div>
+    </section>
+    <aside class="episode-inspector">{{if .selected.ID}}
+      <div class="story-section-head"><h2>Direct this shot</h2><span class="meta">{{printf "%02d" .selected.Number}}</span></div>
+      <form class="story-form" method="post" action="/projects/{{.project.ID}}/edit" data-story-editor>{{with $.csrfToken}}<input type="hidden" name="csrf_token" value="{{.}}">{{end}}
+        <input type="hidden" name="action" value="shot-edit"><input type="hidden" name="episode" value="{{.episode.ID}}"><input type="hidden" name="shot" value="{{.selected.ID}}">
+        <label>Shot title<input class="field" name="title" value="{{.selected.Title}}" required maxlength="120"></label>
+        <div class="story-field-pair"><label>Scene<input class="field" name="scene" value="{{.selected.Scene}}" list="story-scenes"></label><label>Seconds<input class="field" type="number" name="seconds" value="{{.selected.Seconds}}" min="1" max="120" required></label></div>
+        <label>Action &amp; framing<textarea class="field" name="prompt" rows="5" placeholder="Who is in frame? What changes? Where is the camera?">{{.selected.Prompt}}</textarea></label>
+        {{if .project.Assets}}<details class="story-disclosure"><summary>Insert a world description</summary><div class="story-asset-tags">{{range .project.Assets}}<button type="button" data-story-insert="{{.Name}}: {{.Description}}">{{.Name}}</button>{{end}}</div><small>Inserts saved text into this shot. Reference images are chosen in the generation tool.</small></details>{{end}}
+        <label>Dialogue / voice-over<textarea class="field" name="dialogue" rows="3" placeholder="What do we hear?">{{.selected.Dialogue}}</textarea></label>
+        <label>Selected take<select class="field" name="media"><option value="">No take selected</option>{{range .media}}<option value="{{.ID}}" {{if eq .ID $.selected.MediaID}}selected{{end}}>{{.Label}} · {{.Kind}}</option>{{end}}</select></label>
+        <div class="story-section-actions"><button type="button" class="btn btn-secondary btn-small" data-story-open="story-upload">Upload a take</button><a class="btn btn-secondary btn-small" href="?shot={{.selected.ID}}">Refresh library</a></div>
+        <button class="btn btn-confirm">Save shot</button><span class="meta" data-story-save-status>Save before opening a generation tool.</span>
+      </form>
+      {{if .takes}}<details class="story-disclosure" open><summary>Generated takes</summary>{{range .takes}}<a class="story-take" href="/runs/{{.ID}}">{{.EngineName}} · {{.StatusLabel}} ↗</a>{{end}}<a class="link-button" href="?shot={{.selected.ID}}">Refresh take list</a></details>{{end}}
+      <form method="post" action="/projects/{{.project.ID}}/edit" class="story-shot-actions">{{with $.csrfToken}}<input type="hidden" name="csrf_token" value="{{.}}">{{end}}<input type="hidden" name="episode" value="{{.episode.ID}}"><input type="hidden" name="shot" value="{{.selected.ID}}"><input type="hidden" name="action" value="shot-move"><button class="btn btn-secondary btn-small" name="direction" value="up">← Earlier</button><button class="btn btn-secondary btn-small" name="direction" value="down">Later →</button></form>
+      <form method="post" action="/projects/{{.project.ID}}/edit" data-story-delete>{{with $.csrfToken}}<input type="hidden" name="csrf_token" value="{{.}}">{{end}}<input type="hidden" name="episode" value="{{.episode.ID}}"><input type="hidden" name="shot" value="{{.selected.ID}}"><input type="hidden" name="action" value="shot-delete"><button class="link-button">Remove shot from episode</button></form>
+      {{else}}<p class="meta">Choose or add a shot to see its direction, dialogue, and takes.</p>{{end}}
+    </aside>
+  </div>
+  <footer class="episode-timeline"><div class="episode-timeline-head"><span class="story-eyebrow">Episode timeline</span><span>{{.duration}}s / planned sequence</span></div><div class="episode-timeline-track">{{range .shots}}<a href="/projects/{{$.project.ID}}/episodes/{{$.episode.ID}}?shot={{.ID}}" style="flex-grow: {{.Seconds}}" {{if .Selected}}aria-current="page"{{end}} data-story-clip="{{.Media.URL}}" data-story-kind="{{.Media.Kind}}" data-story-seconds="{{.Seconds}}" data-story-title="{{.Title}}"><small>{{.Start}}s</small><strong>{{printf "%02d" .Number}} · {{.Title}}</strong><span>{{.Seconds}}s</span></a>{{else}}<p class="meta">Your shots will appear here in playback order.</p>{{end}}</div></footer>
+</div>
+<dialog class="story-tool-dialog" id="story-tool-dialog"><div class="story-tool-head"><span>Shot tools <span class="meta">/ {{.episode.Title}}</span></span><span class="grow"></span><button class="btn btn-secondary btn-small" data-story-tool-close>Back to episode</button></div><iframe title="Shot generation and finishing tools" data-story-tool-frame></iframe></dialog>
+<dialog id="episode-brief" class="story-dialog"><form class="story-form" method="post" action="/projects/{{.project.ID}}/edit">{{with $.csrfToken}}<input type="hidden" name="csrf_token" value="{{.}}">{{end}}<div class="story-dialog-head"><h2>Episode brief</h2><button type="button" class="btn-icon" data-story-close aria-label="Close">×</button></div><input type="hidden" name="action" value="episode-edit"><input type="hidden" name="episode" value="{{.episode.ID}}"><label>Title<input class="field" name="title" value="{{.episode.Title}}" required maxlength="120"></label><label>Synopsis<textarea class="field" name="synopsis" rows="4">{{.episode.Synopsis}}</textarea></label><button class="btn btn-confirm">Save episode</button></form></dialog>
+{{template "story-upload" .}}
+{{template "story-tour"}}
+{{end}}
+
+{{define "story-tour"}}
+<dialog class="story-dialog story-tour" id="story-tour"><div class="story-dialog-head"><span class="story-eyebrow">Your first story</span><button class="btn-icon" data-story-close aria-label="Close guide">×</button></div><h2>From an idea to a sequence.</h2><ol><li><strong>Make a project.</strong> Give your series a genre, premise, and visual direction.</li><li><strong>Build your world.</strong> Save the characters, props, and places that recur.</li><li><strong>Open an episode.</strong> Add shots, group them into scenes, and describe each moment.</li><li><strong>Direct and choose.</strong> Save a shot, open its tools, then select a take from your library.</li><li><strong>Watch the sequence.</strong> Reorder shots and preview their selected takes on the timeline.</li></ol><button class="btn btn-confirm" data-story-close>Let’s make a story</button></dialog>
+{{end}}
+
+{{define "story-upload"}}{{if .project.ID}}<dialog id="story-upload" class="story-dialog"><form method="post" action="/projects/{{.project.ID}}/media" enctype="multipart/form-data" class="story-form">{{with .csrfToken}}<input type="hidden" name="csrf_token" value="{{.}}">{{end}}<div class="story-dialog-head"><h2>Add media to your library</h2><button type="button" class="btn-icon" data-story-close aria-label="Close">×</button></div>{{with .episode}}<input type="hidden" name="episode" value="{{.ID}}">{{end}}{{with .selected}}<input type="hidden" name="shot" value="{{.ID}}">{{end}}<label>Image or video<input class="field" type="file" name="file" accept="image/png,image/jpeg,image/webp,video/mp4" required></label><p class="meta">Images up to 20 MB; MP4 clips up to 200 MB. Choose the uploaded file as a reference or a shot’s selected take.</p><button class="btn btn-confirm">Upload</button></form></dialog>{{end}}{{end}}

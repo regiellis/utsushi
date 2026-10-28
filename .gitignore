@@ -1,0 +1,10 @@
+# Runtime state: SQLite, the media library, tool models.
+/data/
+/bin/
+/.cache/
+/.task/
+/build-errors.log
+.env
+go.work
+go.work.sum
+

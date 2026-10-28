@@ -1,0 +1,301 @@
+{{define "tools"}}
+<div class="studio tools" hc-data="tools()" hc-on:change="changed($event)" hc-on:input="update()" hc-on:htmx:after:swap="update()"
+     hc-on:click="clicks($event)" hc-on:keydown="keys($event)" hc-on:dragover="dragOver($event)" hc-on:drop="drop($event)"
+     data-tool="{{.tool.ID}}" data-takes="{{.tool.Takes}}">
+  <aside class="panel" aria-label="{{.tool.Name}}">
+    <div class="panel-scroll">
+      <section class="group" aria-labelledby="tool-label">
+        <div class="label-row"><span id="tool-label">Tool</span><span title="Model tools run on {{.device.Name}}{{if .device.GPU}} through ONNX Runtime's CUDA provider{{end}}">{{len .tools}} tools · free · {{if .device.GPU}}GPU{{else}}CPU{{end}}</span></div>
+        <details class="picker tool-picker">
+          <summary class="engine-row">
+            <span class="engine-code" aria-hidden="true">{{.tool.Code}}</span>
+            <span class="engine-text">
+              <span class="engine-name">{{.tool.Name}}</span>
+              <span class="pick-rule">{{.tool.Blurb}}</span>
+            </span>
+            <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </summary>
+          <div class="popover" role="dialog" aria-label="Tools">
+            <div class="label-row popover-head"><span>Tools</span><span>esc</span></div>
+            <div class="tool-list">
+              {{range .tools}}
+              <a class="engine-item" href="/tools?tool={{.ID}}"{{if .Current}} aria-selected="true" aria-current="page"{{end}}>
+                <span class="engine-code" aria-hidden="true">{{.Code}}</span>
+                <span class="engine-text">
+                  <span class="engine-title">{{.Name}}<svg class="check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-11"/></svg></span>
+                  <span class="engine-desc">{{.Blurb}}</span>
+                  <span class="chips">
+                    <span class="chip chip-free">Free</span>
+                    <span class="chip">{{if eq .Takes "video"}}Clip{{else}}Clip or image{{end}}</span>
+                    {{if .Model}}<span class="chip">{{fallback .FirstUse "model ready"}}</span>{{end}}
+                  </span>
+                </span>
+              </a>
+              {{end}}
+            </div>
+          </div>
+        </details>
+      </section>
+
+      {{with .offline}}<p class="notice">{{.}}</p>{{end}}
+
+      {{if eq .tool.Takes "video"}}
+      <input type="hidden" name="source_kind" value="video" form="run-form">
+      {{else}}
+      <div class="segmented segmented-2" role="radiogroup" aria-label="A clip or an image">
+        <label><input type="radio" name="source_kind" value="video" form="run-form" checked><span>Clip</span></label>
+        <label><input type="radio" name="source_kind" value="image" form="run-form"><span>Image</span></label>
+      </div>
+      {{end}}
+
+      <div data-source-pane="video">{{template "clip-block" .clip}}</div>
+
+      <section class="group" aria-labelledby="tool-image-label" data-source-pane="image" hidden>
+        <div class="label-row"><span id="tool-image-label">Source image</span><span>JPEG, PNG, WebP</span></div>
+        <div class="picked" data-picked hidden></div>
+        <details class="picker ref-picker">
+          <summary class="engine-row pick-row">
+            <span class="engine-code pick-plus" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+            <span class="engine-text">
+              <span class="engine-name" data-image-cta>Choose an image</span>
+              <span class="pick-rule">{{len .images}} in the library · one at a time</span>
+            </span>
+            <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </summary>
+          <div class="popover popover-wide" role="dialog" aria-label="Images">
+            <div class="label-row popover-head"><span>Images · pick one</span><span>esc</span></div>
+            <div class="pick-panel" data-ref-panel="image">
+              <div class="pick-actions">
+                <label class="btn btn-secondary btn-small" for="image-file">Upload</label>
+                <button type="button" class="btn btn-secondary btn-small" hx-get="/images/new" hx-target="#image-dialog" hx-swap="innerHTML">
+                  <svg viewBox="0 0 24 24" class="spark" aria-hidden="true"><path d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z"/></svg>Create an image
+                </button>
+              </div>
+              <div id="upload-image-notice" class="notice-slot" aria-live="polite"></div>
+              <div class="pick-scroll">
+                <div class="cast bento" id="images" aria-label="Images" data-bento-cell="64">
+                  {{range .images}}{{template "image-tile" .}}{{end}}
+                </div>
+                <p class="meta pick-empty" data-empty="image">No images yet. Upload one, or create one.</p>
+              </div>
+            </div>
+            <div class="pick-foot"><span class="meta">What is made takes the image's size</span><button type="button" class="btn btn-secondary btn-small" data-picker-close>Done</button></div>
+          </div>
+        </details>
+        <form class="sr-only" hx-post="/media?kind=image" hx-trigger="change" hx-target="#images" hx-swap="afterbegin"
+              enctype="multipart/form-data" hc-on:htmx:after:request="$event.currentTarget.reset()">
+          <input type="file" name="file" accept="image/png,image/jpeg,image/webp" id="image-file">
+        </form>
+      </section>
+
+      {{if eq .tool.ID "depth"}}
+      <section class="group" aria-labelledby="depth-model-label">
+        <div class="label-row"><span id="depth-model-label">Model</span><span data-model-note></span></div>
+        <div class="segmented segmented-2" role="radiogroup" aria-labelledby="depth-model-label">
+          <label title="Depth Anything V2 Small, frame by frame at the clip's own shape: crisp edges">
+            <input type="radio" name="model" value="frame" form="run-form" checked data-first="{{.frameFirst}}"><span>Sharp<small>per frame</small></span></label>
+          <label title="Video Depth Anything Small reads 32 frames at a time. Its input is fixed at 910 by 518, so a portrait clip gets a narrow strip of it and comes out softer">
+            <input type="radio" name="model" value="video" form="run-form" data-first="{{.videoFirst}}"><span>Stable<small>32-frame windows</small></span></label>
+        </div>
+      </section>
+      <section class="group" aria-labelledby="depth-looks-label">
+        <div class="label-row"><span id="depth-looks-label">Maps</span><span>one library item each</span></div>
+        <div class="soundtracks depth-looks">
+          {{range $i, $l := .lookChoices}}
+          <label class="soundtrack depth-look"><input type="checkbox" name="look" value="{{$l.Value}}" form="run-form" {{if eq $i 0}}checked{{end}}>
+            <span class="depth-look-text"><b>{{$l.Name}}</b><span class="meta">{{$l.Note}}</span></span></label>
+          {{end}}
+        </div>
+      </section>
+      {{end}}
+
+      {{if eq .tool.ID "edges"}}
+      <section class="group" aria-labelledby="edges-label">
+        <div class="label-row"><span id="edges-label">Detail</span><span>Canny thresholds</span></div>
+        <div class="segmented segmented-3" role="radiogroup" aria-labelledby="edges-label">
+          <label title="Thresholds 100 and 200, ControlNet's default"><input type="radio" name="detail" value="medium" form="run-form" checked><span>Default<small>100 / 200</small></span></label>
+          <label title="Thresholds 50 and 100: fine texture shows too"><input type="radio" name="detail" value="more" form="run-form"><span>Fine<small>50 / 100</small></span></label>
+          <label title="Thresholds 150 and 300: only strong outlines"><input type="radio" name="detail" value="less" form="run-form"><span>Bold<small>150 / 300</small></span></label>
+        </div>
+      </section>
+      {{end}}
+
+      {{if eq .tool.ID "frame"}}
+      <section class="group" aria-labelledby="frame-label">
+        <div class="label-row"><span id="frame-label">Frame</span><span data-frame-at>0.00 s</span></div>
+        <video class="frame-preview" data-frame-preview muted playsinline preload="auto"></video>
+        <input type="range" class="frame-range" name="at" form="run-form" min="0" max="0" step="0.01" value="0" data-frame-range aria-label="Time to grab">
+        <div class="row frame-steps">
+          <button type="button" class="btn btn-ghost btn-small" data-frame-step="first">First</button>
+          <button type="button" class="btn btn-ghost btn-small" data-frame-step="-0.1">−0.1 s</button>
+          <button type="button" class="btn btn-ghost btn-small" data-frame-step="0.1">+0.1 s</button>
+          <button type="button" class="btn btn-ghost btn-small" data-frame-step="last">Last</button>
+        </div>
+      </section>
+      {{end}}
+
+      {{if eq .tool.ID "conform"}}
+      <section class="group" aria-labelledby="rate-label">
+        <div class="label-row"><span id="rate-label">Frame rate</span><span>16 and 24 suit most video models</span></div>
+        <div class="segmented segmented-inline" role="radiogroup" aria-labelledby="rate-label">
+          <label><input type="radio" name="rate" value="keep" form="run-form" checked><span>Keep</span></label>
+          {{range .rates}}<label><input type="radio" name="rate" value="{{.}}" form="run-form"><span>{{.}}</span></label>{{end}}
+        </div>
+      </section>
+      <section class="group" aria-labelledby="size-label">
+        <div class="label-row"><span id="size-label">Size</span><span>the short side</span></div>
+        <div class="segmented segmented-inline" role="radiogroup" aria-labelledby="size-label">
+          <label><input type="radio" name="size" value="keep" form="run-form" checked><span>Keep</span></label>
+          {{range .sizes}}<label><input type="radio" name="size" value="{{.}}" form="run-form"><span>{{.}}p</span></label>{{end}}
+        </div>
+      </section>
+      <section class="group" aria-labelledby="shape-label">
+        <div class="label-row"><span id="shape-label">Shape</span><span>cropped from the center</span></div>
+        <div class="segmented segmented-inline" role="radiogroup" aria-labelledby="shape-label">
+          <label><input type="radio" name="shape" value="keep" form="run-form" checked><span>Keep</span></label>
+          <label><input type="radio" name="shape" value="portrait" form="run-form"><span>9:16</span></label>
+          <label><input type="radio" name="shape" value="landscape" form="run-form"><span>16:9</span></label>
+          <label><input type="radio" name="shape" value="square" form="run-form"><span>1:1</span></label>
+        </div>
+      </section>
+      {{end}}
+
+      {{if eq .tool.ID "pose"}}
+      <p class="meta long-note">Finds each person with YOLOX, places 133 body, hand, and face points with DWPose, and draws them as ControlNet's DWPose annotator does, at 512 on the short side, then scaled to the source. {{if .device.GPU}}About 4 s for a 2 s clip on the GPU{{else}}About a quarter second a frame on the CPU{{end}}, more with many people.</p>
+      {{end}}
+
+      {{if eq .tool.ID "matte"}}
+      <section class="group" aria-labelledby="matte-label">
+        <div class="label-row"><span id="matte-label">Make</span><span>one library item each</span></div>
+        <div class="soundtracks depth-looks">
+          <label class="soundtrack depth-look"><input type="checkbox" name="look" value="matte" form="run-form" checked>
+            <span class="depth-look-text"><b>Matte</b><span class="meta">white where a person is, black elsewhere</span></span></label>
+          <label class="soundtrack depth-look"><input type="checkbox" name="look" value="cutout" form="run-form">
+            <span class="depth-look-text"><b>Cutout</b><span class="meta">the people in their own colors over black</span></span></label>
+        </div>
+        <p class="meta long-note">MODNet is trained on portraits. Frames are matted one at a time, so edges can shimmer.</p>
+      </section>
+      {{end}}
+
+      {{if eq .tool.ID "upscale"}}
+      <section class="group" aria-labelledby="factor-label">
+        <div class="label-row"><span id="factor-label">Size</span><span>up to 3840 on the long side</span></div>
+        <div class="segmented segmented-2" role="radiogroup" aria-labelledby="factor-label">
+          <label><input type="radio" name="factor" value="2" form="run-form" checked><span>2×</span></label>
+          <label><input type="radio" name="factor" value="4" form="run-form"><span>4×</span></label>
+        </div>
+      </section>
+      <section class="group" aria-labelledby="upmodel-label">
+        <div class="label-row"><span id="upmodel-label">Model</span><span data-model-note></span></div>
+        <div class="segmented segmented-2" role="radiogroup" aria-labelledby="upmodel-label">
+          <label title="realesr-general-x4v3: photos and live action"><input type="radio" name="model" value="general" form="run-form" checked><span>General<small>live action</small></span></label>
+          <label title="realesr-animevideov3: drawn and animated footage, about twice as fast"><input type="radio" name="model" value="anime" form="run-form"><span>Anime<small>drawn footage</small></span></label>
+        </div>
+        <p class="meta long-note">{{if .device.GPU}}About 0.55 s a frame for a 720×1280 source on the GPU, so a 10 s 30 fps clip takes under 3 minutes.{{else}}Slow on the CPU: about 0.7 s a frame at 360×640 and 2.8 s at 720×1280, so a 10 s 30 fps clip at 720×1280 takes about 14 minutes.{{end}}</p>
+      </section>
+      {{end}}
+
+      {{if eq .tool.ID "interp"}}
+      <section class="group" aria-labelledby="ifactor-label">
+        <div class="label-row"><span id="ifactor-label">Frames</span><span>the same length, smoother</span></div>
+        <div class="segmented segmented-2" role="radiogroup" aria-labelledby="ifactor-label">
+          <label><input type="radio" name="factor" value="2" form="run-form" checked><span>2×<small>24 to 48 fps</small></span></label>
+          <label><input type="radio" name="factor" value="4" form="run-form"><span>4×<small>24 to 96 fps</small></span></label>
+        </div>
+        <p class="meta long-note">RIFE 4.9 draws each new frame. Across a cut it repeats the frame instead of blending two shots.</p>
+      </section>
+      {{end}}
+
+      {{if eq .tool.ID "audio"}}
+      <p class="meta long-note">The sound is kept as WAV, or as MP3 for clips past two and a half minutes, and shows in the studio's audio references and the Long video soundtracks.</p>
+      {{end}}
+    </div>
+    <form id="run-form" class="panel-foot" hx-post="/tools/run" hx-target="#form-errors" hx-swap="innerHTML">
+      <input type="hidden" name="tool" value="{{.tool.ID}}">
+      <input type="hidden" name="image" value="" data-image-input>
+      <div id="form-errors" aria-live="assertive"></div>
+      <button class="generate" data-generate {{if .offline}}disabled{{end}}>
+        <span class="generate-label">{{.tool.Action}}</span>
+        <span class="generate-meta" data-generate-meta></span>
+      </button>
+    </form>
+  </aside>
+  <section class="feed" aria-label="Made with tools">
+    <div class="feed-head"><h2>Made with tools</h2><span class="grow"></span></div>
+    <div id="tool-cards" class="cards bento" data-bento-cell="170">
+      {{range .made}}{{template "tool-card" .}}{{end}}
+    </div>
+    <div class="empty">
+      <p class="empty-title">Nothing here yet</p>
+      <p class="meta">Pick a source and press {{.tool.Action}}. Each item streams its progress here.</p>
+    </div>
+  </section>
+</div>
+{{end}}
+
+{{define "tools-started"}}
+<div hx-swap-oob="afterbegin:#tool-cards">{{range .made}}{{template "tool-card" .}}{{end}}</div>
+{{end}}
+
+{{define "tool-card"}}
+<article class="run-card" id="tool-{{.ID}}" data-shape="{{.Shape}}"
+         {{if .Pending}}hx-sse:connect="/sse?channels=media-{{.ID}}" hx-sse:close="done"
+         hc-on:connected="resync($event)" data-sync-url="/tools/items/{{.ID}}/card"{{end}} hx-swap="innerHTML">
+  {{template "tool-card-body" .}}
+</article>
+{{end}}
+
+{{define "tool-card-body"}}
+<div class="card">
+  <div class="card-media{{if .Pending}} tone-generating{{else if .Failed}} tone-failed{{end}}{{if eq .Kind "audio"}} card-audio{{end}}" style="aspect-ratio: {{.Aspect}}">
+    {{if .Ready}}
+      {{if eq .Kind "image"}}<img src="{{.URL}}" alt="{{.Label}}" loading="lazy">
+      <button type="button" class="card-open" aria-label="Open {{.Label}}" data-lightbox="image" data-lightbox-src="{{.URL}}"></button>
+      {{else if eq .Kind "audio"}}<span class="card-audio-face">{{template "icon-audio"}}</span>
+      <button type="button" class="card-open" aria-label="Play {{.Label}}" data-play-audio="{{.URL}}"></button>
+      {{else}}<video src="{{.URL}}" muted loop playsinline autoplay preload="metadata"{{if posters}} poster="{{.URL}}/poster"{{end}}></video>
+      <button type="button" class="card-open" aria-label="Open {{.Label}}" data-lightbox="video" data-lightbox-src="{{.URL}}"></button>{{end}}
+    {{else}}{{with .SourceURL}}
+      {{if eq $.SourceKind "image"}}<img src="{{.}}" alt="" loading="lazy">{{else}}<video src="{{.}}#t=0.1" muted playsinline preload="metadata"{{if posters}} poster="{{.}}/poster"{{end}}></video>{{end}}
+    {{end}}{{end}}
+    <div class="card-top">
+      <span class="pill-status tone-{{if .Pending}}generating{{else if .Failed}}failed{{else}}succeeded{{end}}"{{with .ToolName}} title="{{.}}"{{end}}><i></i>{{if .Pending}}Making{{else if .Failed}}Failed{{else}}Ready{{end}}</span>
+      {{if .Failed}}{{template "error-mark" (dict "title" .Error)}}{{end}}
+      <span class="grow"></span>
+      {{if .Ready}}<a class="card-action" href="{{.URL}}" download title="Download" aria-label="Download {{.Label}}">{{template "icon-download"}}</a>{{end}}
+      {{if not .Pending}}
+      <button type="button" class="card-action card-action-danger" title="Delete" aria-label="Delete {{.Label}}"
+              hx-delete="/media/{{.ID}}" hx-target="closest .run-card" hx-swap="outerHTML"
+              hx-confirm="Delete this from the library?" data-confirm-ok="Delete" data-confirm-tone="danger">{{template "icon-trash"}}</button>
+      {{end}}
+    </div>
+    {{if .Failed}}
+    <div class="card-failure">
+      <button type="button" class="btn btn-inverse btn-small" hx-post="/tools/items/{{.ID}}/retry"
+              hx-target="closest .run-card" hx-swap="outerHTML">Retry</button>
+    </div>
+    {{end}}
+    <div class="card-shade">
+      {{if .Pending}}
+      <div class="card-progress">
+        <div class="card-progress-row"><span>{{.Note}}</span><span>{{if .Percent}}{{.Percent}}%{{end}}</span></div>
+        <div class="bar{{if not .Percent}} bar-indeterminate{{end}}" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+             {{if .Percent}}aria-valuenow="{{.Percent}}"{{end}}><span style="width: {{.Percent}}%"></span></div>
+      </div>
+      {{end}}
+      {{if and .SourceURL .Ready}}
+      <div class="run-inputs" aria-label="Made from">
+        <button type="button" class="run-input{{if ne .SourceKind "image"}} run-input-clip{{end}}" aria-label="Source"
+                data-peek="{{.SourceKind}}" data-peek-src="{{.SourceURL}}" data-lightbox="{{.SourceKind}}" data-lightbox-src="{{.SourceURL}}">
+          {{if eq .SourceKind "image"}}<img src="{{.SourceURL}}" alt="" loading="lazy">{{else}}<video src="{{.SourceURL}}#t=0.1" muted playsinline preload="metadata"></video>{{end}}
+        </button>
+      </div>
+      {{end}}
+      <div class="card-meta">
+        <div class="card-title" title="{{.Label}}">{{.Label}}</div>
+        <div class="card-facts"><span>{{.Meta}}</span><span>{{.Created}}</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+{{end}}

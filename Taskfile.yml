@@ -1,0 +1,76 @@
+version: '3'
+
+vars:
+  # The comfy-api-proxy release Utsushi starts. Keep it equal to the
+  # github.com/regiellis/comfy-api-proxy-go version in go.mod, so the proxy
+  # and the SDK speak the same version of the API.
+  PROXY_VERSION: v0.2.0
+  BIN: bin/utsushi
+
+tasks:
+  default:
+    cmds:
+      - task --list
+    silent: true
+
+  proxy:
+    desc: Install the comfy-api-proxy release Utsushi runs into bin/
+    env:
+      GOBIN: '{{.ROOT_DIR}}/bin'
+      CGO_ENABLED: '0'
+    cmds:
+      - go install github.com/regiellis/comfy-api-proxy-go/cmd/comfy-api-proxy@{{.PROXY_VERSION}}
+    status:
+      - test -x bin/comfy-api-proxy
+      - bin/comfy-api-proxy --version | grep -q "{{trimPrefix "v" .PROXY_VERSION}}"
+
+  run:
+    desc: Run Utsushi with Air auto-rebuild (key from .env or Settings; flags after --)
+    deps: [proxy]
+    dotenv: ['.env']
+    preconditions:
+      - sh: command -v air
+        msg: Air is required on PATH (https://github.com/air-verse/air).
+    cmds:
+      - air -c .air.toml -- {{.CLI_ARGS}}
+
+  build:
+    desc: Build the Utsushi binary into bin/ (cgo, for ONNX Runtime)
+    env:
+      CGO_ENABLED: '1'
+    cmds:
+      - go build -trimpath -o {{.BIN}} .
+
+  test:
+    desc: Run the tests against the fake Router queue (go test flags after --)
+    cmds:
+      - go test -race {{if .CLI_ARGS}}{{.CLI_ARGS}}{{else}}./...{{end}}
+
+  eval:
+    desc: Grade the Suggest and Improve prompts against the language model (evals/prompts.json)
+    cmds:
+      - go test -tags eval -run TestPromptEval -count=1 -v -timeout 30m .
+
+  lint:
+    desc: Lint with golangci-lint
+    cmds:
+      - golangci-lint run ./...
+
+  security:
+    desc: Scan against current Go vulnerability advisories
+    cmds:
+      - go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+
+  check:
+    desc: The gate before a commit - lint, tests, vulnerability scan
+    cmds:
+      - task: lint
+      - task: test
+      - task: security
+
+  # Converts a ComfyUI template (UI format) to API format without a running
+  # ComfyUI: task template -- TEMPLATE.json OBJECT_INFO.json > OUT.api.json
+  template:
+    desc: Convert a ComfyUI workflow template to API format from an object_info dump
+    cmds:
+      - go run ./cmd/templateapi {{.CLI_ARGS}}

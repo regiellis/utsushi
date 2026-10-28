@@ -1,0 +1,45 @@
+{{define "clip-editor"}}
+<div class="clip-editor" data-clip-editor data-cuts="{{.Cuts}}" data-detected="{{.Detected}}" data-seconds="{{.Seconds}}"
+     {{if .Strip}}data-strip="{{.URL}}/strip"{{end}}>
+  <div class="clip-editor-head">
+    <h2>Cuts · <span class="clip-editor-name">{{.Label}}</span></h2>
+    <button type="button" class="btn-icon" data-editor-close aria-label="Close">{{template "icon-close"}}</button>
+  </div>
+  <video class="clip-editor-video" src="{{.URL}}" controls playsinline preload="auto" data-editor-video></video>
+  <div class="cut-timeline" data-cut-timeline title="Click to move the playhead">
+    <span class="trim-off trim-off-start" data-trim-start-shade></span>
+    <span class="trim-off trim-off-end" data-trim-end-shade></span>
+    <span class="cut-playhead" data-cut-playhead></span>
+    <div class="cut-markers" data-cut-markers></div>
+  </div>
+  <div class="clip-editor-bar">
+    <button type="button" class="btn btn-secondary btn-small" data-cut-add>Cut at the playhead <kbd>C</kbd></button>
+    <button type="button" class="btn btn-ghost btn-small" data-cut-detected>Use the detected cuts</button>
+    <button type="button" class="btn btn-ghost btn-small" data-cut-clear>Clear</button>
+    <span class="clip-editor-sep" aria-hidden="true"></span>
+    <button type="button" class="btn btn-ghost btn-small" data-trim-start title="Trim: start the new clip at the playhead">Start here <kbd>I</kbd></button>
+    <button type="button" class="btn btn-ghost btn-small" data-trim-end title="Trim: end the new clip at the playhead">End here <kbd>O</kbd></button>
+    <span class="grow"></span>
+    <span class="meta" data-cut-summary></span>
+  </div>
+  <p class="meta clip-editor-note">{{if .Saved}}These are your saved cuts.{{else}}These are the cuts found in the clip; save them to keep your own.{{end}}
+    A run in parts splits the clip at saved cuts. Click a cut on the timeline to remove it. Start here and End here set a stretch to trim into a new clip.</p>
+  <form class="clip-editor-foot" data-cut-form>
+    <div data-cut-inputs></div>
+    <input type="hidden" name="start" value="0" data-trim-start-input>
+    <input type="hidden" name="end" value="{{.Seconds}}" data-trim-end-input>
+    <button type="button" class="btn btn-ghost" hx-post="/media/{{.ID}}/cuts" hx-include="[data-cut-form]" hx-vals='{"reset": "1"}' hx-swap="none"
+            title="Forget saved cuts, so they are found in the clip again">Reset</button>
+    <span class="grow"></span>
+    <button type="button" class="btn btn-secondary" hx-post="/media/{{.ID}}/trim" hx-include="[data-cut-form]" hx-swap="none" data-trim-make disabled>Trim to a new clip</button>
+    <button type="button" class="btn btn-secondary" hx-post="/media/{{.ID}}/split" hx-include="[data-cut-form]" hx-swap="none" data-cut-split>Split</button>
+    <button type="button" class="btn btn-confirm" hx-post="/media/{{.ID}}/cuts" hx-include="[data-cut-form]" hx-swap="none">Save cuts</button>
+  </form>
+</div>
+{{end}}
+
+{{define "clips-split"}}
+<div hx-swap-oob="beforeend:#clip-choices">{{range .clips}}{{template "clip-choice" .}}{{end}}</div>
+<div hx-swap-oob="beforeend:#ref-videos">{{range .clips}}{{template "ref-video-tile" .}}{{end}}</div>
+<div hx-swap-oob="beforeend:#start-grid">{{range .clips}}{{template "start-choice" (dict "clip" . "start" "")}}{{end}}</div>
+{{end}}

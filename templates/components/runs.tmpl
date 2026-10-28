@@ -1,0 +1,163 @@
+{{define "run-card"}}
+<article class="run-card" id="run-{{.ID}}" data-shape="{{.Shape}}"
+         {{if .Active}}hx-sse:connect="/sse?channels=run-{{.ID}}" hx-sse:close="done"
+         hc-on:connected="resync($event)" data-sync-url="/runs/{{.ID}}/card"{{end}} hx-swap="innerHTML">
+  {{template "run-card-body" .}}
+</article>
+{{end}}
+
+{{define "run-card-body"}}
+<div class="card" data-group="{{.Group}}">
+  <div class="card-media tone-{{.Tone}}" style="aspect-ratio: {{.Aspect}}">
+    {{if .Succeeded}}
+      <video src="{{.ResultURL}}" muted loop playsinline autoplay preload="metadata"{{if posters}} poster="{{.ResultURL}}/poster"{{end}}></video>
+      <button type="button" class="card-open" aria-label="Open the result"
+              data-lightbox="video" data-lightbox-src="{{.ResultURL}}" data-lightbox-run="{{.ID}}"></button>
+    {{else}}{{with .SourceURL}}
+      <video src="{{.}}#t=0.1" muted playsinline preload="metadata"{{if posters}} poster="{{.}}/poster"{{end}}></video>
+    {{end}}{{end}}
+    <div class="card-top">
+      <span class="pill-status tone-{{.Tone}}"><i></i>{{.StatusLabel}}</span>
+      {{with .Version}}<span class="pill-version">{{.}}</span>{{end}}
+      {{if or .Failed .Lost}}{{template "error-mark" (dict "title" .ErrorTitle "hint" .ErrorHint)}}{{end}}
+      <span class="grow"></span>
+      {{if .Active}}
+        <button type="button" class="card-action" title="Cancel" aria-label="Cancel this run" hx-post="/runs/{{.ID}}/cancel" hx-swap="none"
+                hx-confirm="Ask the provider to cancel? Work it has started may still be billed." data-confirm-ok="Cancel run" data-confirm-no="Keep running" data-confirm-tone="danger">{{template "icon-close"}}</button>
+      {{else}}
+        {{if and .Prompt .StudioURL}}
+          <a class="card-action" href="{{.StudioURL}}?reuse={{.ID}}" title="Reuse prompt" aria-label="Reuse this run's prompt"
+             data-reuse-prompt="{{.Prompt}}" data-reuse-mode="{{.Mode}}" data-reuse-run="{{.ID}}">{{template "icon-reuse"}}</a>
+        {{end}}
+        {{if and .Succeeded .SourceURL}}
+          <a class="card-action" href="/runs/{{.ID}}" title="Compare" aria-label="Compare with the source">{{template "icon-compare"}}</a>
+          <a class="card-action" href="{{.ResultURL}}" download title="Download" aria-label="Download the result">{{template "icon-download"}}</a>
+        {{else if and .CanRunAgain (not .Failed)}}
+          <button type="button" class="card-action" title="Run again" aria-label="Run again with the same inputs"
+                  hx-post="/runs/{{.ID}}/again" hx-swap="none"
+                  {{if .Billed}}hx-confirm="Run it again with the same inputs? This is a new billed generation." data-confirm-ok="Run again"{{end}}>{{template "icon-retry"}}</button>
+        {{end}}
+        {{if or .Failed .Lost}}
+          <button type="button" class="card-action card-action-danger" title="Dismiss" aria-label="Dismiss this run"
+                  hx-delete="/runs/{{.ID}}" hx-target="closest .run-card" hx-swap="outerHTML"
+                  hx-confirm="{{if .Lost}}Dismiss this run? The provider may still finish it, and its result would be lost.{{else}}Dismiss this run?{{end}}" data-confirm-ok="Dismiss" data-confirm-tone="danger">{{template "icon-close"}}</button>
+        {{else}}
+          <button type="button" class="card-action card-action-danger" title="Delete" aria-label="Delete this run"
+                  hx-delete="/runs/{{.ID}}" hx-target="closest .run-card" hx-swap="outerHTML"
+                  hx-confirm="Delete this run and its result?" data-confirm-ok="Delete" data-confirm-tone="danger">{{template "icon-trash"}}</button>
+        {{end}}
+      {{end}}
+    </div>
+    {{if or .Failed .Lost}}
+    <div class="card-failure">
+      {{if .Lost}}
+      <button type="button" class="btn btn-inverse btn-small" hx-post="/runs/{{.ID}}/collect" hx-target="closest .run-card" hx-swap="outerHTML">Collect</button>
+      {{else}}
+      <button type="button" class="btn btn-inverse btn-small" hx-post="/runs/{{.ID}}/again" hx-swap="none"
+              {{if .Billed}}hx-confirm="Run it again with the same inputs? This is a new billed generation." data-confirm-ok="Run again"{{end}}>Run again</button>
+      {{end}}
+    </div>
+    {{end}}
+    <div class="card-shade">
+      {{if .Active}}
+      <div class="card-progress">
+        <div class="card-progress-row"><span>{{fallback .Detail .StatusLabel}}</span><span>{{if not .Indeterminate}}{{.Percent}}%{{end}}</span></div>
+        <div class="bar{{if .Indeterminate}} bar-indeterminate{{end}}" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+             {{if not .Indeterminate}}aria-valuenow="{{.Percent}}"{{end}}><span style="width: {{.Percent}}%"></span></div>
+      </div>
+      {{end}}
+      {{template "run-inputs" .}}
+      <div class="card-meta">
+        <div class="card-title" title="{{.EngineName}}">{{with .StyleName}}{{.}} · {{end}}{{if .Shots}}Long video · {{end}}{{.EngineName}}</div>
+        <div class="card-facts"><span>{{.Resolution}}{{with .Length}} · {{.}}{{end}}</span><span>{{.Created}}</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+{{end}}
+
+{{define "run-inputs"}}
+<div class="run-inputs" aria-label="Inputs">
+  {{with .SourceURL}}
+  <button type="button" class="run-input run-input-clip" aria-label="Source clip"
+          data-peek="video" data-peek-src="{{.}}" data-lightbox="video" data-lightbox-src="{{.}}">
+    <video src="{{.}}#t=0.1" muted playsinline preload="metadata"></video>
+  </button>
+  {{end}}
+  {{with .StyleURL}}
+  <button type="button" class="run-input run-input-style" aria-label="Style frame"
+          data-peek="image" data-peek-src="{{.}}" data-lightbox="image" data-lightbox-src="{{.}}">
+    <img src="{{.}}" alt="" loading="lazy">
+  </button>
+  {{end}}
+  {{range .Refs}}{{if .URL}}
+  {{if eq .Kind "audio"}}
+  <button type="button" class="run-input run-input-audio" aria-label="Reference {{.Tag}}, {{.Label}}" title="{{.Label}} · {{.Length}}" data-play-audio="{{.URL}}">
+    {{template "icon-audio"}}
+  </button>
+  {{else if eq .Kind "video"}}
+  <button type="button" class="run-input" aria-label="Reference {{.Tag}}"
+          data-peek="video" data-peek-src="{{.URL}}" data-lightbox="video" data-lightbox-src="{{.URL}}">
+    <video src="{{.URL}}#t=0.1" muted playsinline preload="metadata"></video>
+  </button>
+  {{else}}
+  <button type="button" class="run-input" aria-label="Reference {{.Tag}}"
+          data-peek="image" data-peek-src="{{.URL}}" data-lightbox="image" data-lightbox-src="{{.URL}}">
+    <img src="{{.URL}}" alt="" loading="lazy">
+  </button>
+  {{end}}
+  {{end}}{{end}}
+</div>
+{{end}}
+
+{{define "run-feed"}}
+<section class="feed" hc-data="feed()" hc-on:htmx:after:swap="recount()" aria-label="{{.title}}">
+  <div class="feed-head">
+    {{if .library}}<h1>{{.title}}</h1>{{else}}<h2>{{.title}}</h2>{{end}}
+    <div class="filters" role="tablist" aria-label="Filter runs">
+      <button type="button" role="tab" aria-selected="true" data-filter="all" hc-on:click="show($event)">All<span data-count="all"></span></button>
+      <button type="button" role="tab" data-filter="running" hc-on:click="show($event)">Running<span data-count="running"></span></button>
+      <button type="button" role="tab" data-filter="done" hc-on:click="show($event)">Done<span data-count="done"></span></button>
+      <button type="button" role="tab" data-filter="failed" hc-on:click="show($event)">Failed<span data-count="failed"></span></button>
+    </div>
+    <span class="grow"></span>
+    {{if not .library}}<a href="/runs" class="link">Open library →</a>{{end}}
+  </div>
+  {{if .library}}<p class="lede">Every run, newest first. Results are kept on this machine, so they outlive the providers' short-lived links.</p>{{end}}
+  {{template "runs-live"}}
+  <div id="runs" class="cards bento" data-filter="all" data-bento-cell="170">
+    {{range .runs}}{{template "run-card" .}}{{end}}
+  </div>
+  <div class="empty">
+    <p class="empty-title">Nothing here yet</p>
+    <p class="meta">Pick a clip, choose references, and press Generate. Each run streams its progress here.</p>
+  </div>
+</section>
+{{end}}
+
+{{define "runs-live"}}
+<div hidden hx-sse:connect="/sse?channels=runs" hc-on:run-added="addRun($event)" hc-on:connected="resyncRuns($event)"></div>
+{{end}}
+
+{{define "runs-started"}}
+<div hx-swap-oob="afterbegin:#runs">{{range .runs}}{{template "run-card" .}}{{end}}</div>
+{{end}}
+
+{{define "icon-compare"}}<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg>{{end}}
+{{define "icon-reuse"}}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 11h10M4 16h6M14 20l-3-3 3-3M11 17h6a3 3 0 0 0 3-3v-1"/></svg>{{end}}
+{{define "icon-cut"}}<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.6 7.6 20 18M8.6 16.4 20 6"/></svg>{{end}}
+{{define "icon-download"}}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>{{end}}
+{{define "icon-trash"}}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>{{end}}
+{{define "icon-retry"}}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5.3L20 9M20 4v5h-5M20 12a8 8 0 0 1-14 5.3L4 15M4 20v-5h5"/></svg>{{end}}
+{{define "icon-audio"}}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></svg>{{end}}
+{{/* error-mark is a problem kept out of the way: an amber ! whose message
+   shows on hover or keyboard focus (the shell's error tip), and is its
+   accessible name. error-mark-quiet is the same inside a button or a
+   label, which may not hold another focusable control. Pass a dict of
+   title and, optionally, hint. */}}
+{{define "error-mark"}}<span class="error-mark" tabindex="0" role="img" {{template "error-mark-attrs" .}}>{{template "icon-alert"}}</span>{{end}}
+{{define "error-mark-quiet"}}<span class="error-mark" role="img" {{template "error-mark-attrs" .}}>{{template "icon-alert"}}</span>{{end}}
+{{define "error-mark-attrs"}}aria-label="{{.title}}{{with .hint}}. {{.}}{{end}}" data-error="{{.title}}"{{with .hint}} data-error-hint="{{.}}"{{end}}{{end}}
+{{define "icon-alert"}}<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v6"/><circle cx="12" cy="16.6" r="0.6"/></svg>{{end}}
+{{define "icon-close"}}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>{{end}}
+{{define "icon-copy"}}<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>{{end}}

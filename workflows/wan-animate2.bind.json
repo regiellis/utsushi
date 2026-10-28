@@ -1,0 +1,9 @@
+{
+ "video": "240.file",
+ "reference": "189.image",
+ "prompt": "672:582.text",
+ "seed": "672:597.noise_seed",
+ "width": "672:600.resize_type.width",
+ "height": "672:600.resize_type.height",
+ "output": "246"
+}

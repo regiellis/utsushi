@@ -1,0 +1,27 @@
+# Run through task run. Tested with Air v1.67.4.
+root = "."
+tmp_dir = ".cache/air"
+env_files = []
+
+[build]
+cmd = "CGO_ENABLED=1 go build -o .cache/air/utsushi ."
+entrypoint = [".cache/air/utsushi"]
+include_dir = ["."]
+include_ext = ["go", "tmpl", "html", "css", "js", "json", "toml", "mod", "sum", "svg", "png", "jpg", "jpeg", "webp", "ico", "woff", "woff2"]
+exclude_dir = ["data", "vendor", ".git", ".cache", "bin", "design"]
+exclude_regex = ["_test\\.go"]
+exclude_unchanged = true
+delay = 300
+send_interrupt = true
+kill_delay = "5s"
+stop_on_error = true
+log = "build-errors.log"
+
+[log]
+time = true
+
+[misc]
+clean_on_exit = true
+
+[screen]
+clear_on_rebuild = false
